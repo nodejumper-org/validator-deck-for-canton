@@ -13,9 +13,9 @@ export function StatusDot({ ok, children, className }: StatusDotProps) {
   const state = ok === true ? "healthy" : ok === false ? "failing" : "unknown"
 
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span className={cn("flex items-center gap-2", className)}>
       <span className={cn("size-2 shrink-0 rounded-full", tone)} role="img" aria-label={state} />
-      {children ? <span className="truncate">{children}</span> : null}
+      {children ? <span className="min-w-0 truncate">{children}</span> : null}
     </span>
   )
 }
