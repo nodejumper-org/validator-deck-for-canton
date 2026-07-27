@@ -1,5 +1,5 @@
 import { vi, type Mock } from "vitest"
-import type { CantonApiError } from "../errors.js"
+import type { CantonApiError } from "../errors"
 
 /**
  * `vi.fn(async () => ...)` infers an empty parameter tuple, which makes

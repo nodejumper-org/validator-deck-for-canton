@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { z } from "zod"
 import type { NodeSummary } from "@/lib/types"
-import { seal } from "./crypto.js"
-import { getDb } from "./db.js"
-import { HttpError } from "./route-helpers.js"
-import { nodes, type NodeRecord } from "./schema.js"
+import { seal } from "./crypto"
+import { getDb } from "./db"
+import { HttpError } from "./route-helpers"
+import { nodes, type NodeRecord } from "./schema"
 
 /** Accepts a URL or an empty string, normalising "" to undefined. */
 const optionalUrl = z

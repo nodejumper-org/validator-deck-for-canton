@@ -1,8 +1,8 @@
 import { expect, test } from "vitest"
 import { z } from "zod"
-import { CantonApiError } from "../errors.js"
-import { createHttp } from "../http.js"
-import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers.js"
+import { CantonApiError } from "../errors"
+import { createHttp } from "../http"
+import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers"
 
 const schema = z.object({ version: z.string() })
 const token = async () => "tok-123"

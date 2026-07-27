@@ -1,6 +1,6 @@
 import { beforeEach, expect, test } from "vitest"
-import { clearTokenCache, createTokenProvider } from "../token.js"
-import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers.js"
+import { clearTokenCache, createTokenProvider } from "../token"
+import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers"
 
 const cfg = {
   tokenUrl: "https://kc.example/realms/x/protocol/openid-connect/token",

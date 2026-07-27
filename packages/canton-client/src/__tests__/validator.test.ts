@@ -1,7 +1,7 @@
 import { expect, test } from "vitest"
-import { createValidatorClient } from "../validator.js"
-import * as f from "./fixtures.js"
-import { asFetch, callAt, fetchSpy, jsonResponse } from "./helpers.js"
+import { createValidatorClient } from "../validator"
+import * as f from "./fixtures"
+import { asFetch, callAt, fetchSpy, jsonResponse } from "./helpers"
 
 function harness(payload: unknown, status = 200) {
   const spy = fetchSpy(async () => jsonResponse(payload, status))

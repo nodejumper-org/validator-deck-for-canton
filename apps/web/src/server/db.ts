@@ -3,7 +3,7 @@ import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Pool } from "pg"
-import * as schema from "./schema.js"
+import * as schema from "./schema"
 
 export type DrizzleDb = ReturnType<typeof drizzlePg<typeof schema>>
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
-import { createLedgerClient } from "../ledger.js"
-import { createTokenProvider } from "../token.js"
-import { createValidatorClient } from "../validator.js"
+import { createLedgerClient } from "../ledger"
+import { createTokenProvider } from "../token"
+import { createValidatorClient } from "../validator"
 
 /**
  * Read-only checks against a real Canton node. Skipped unless SMOKE_* is set, so

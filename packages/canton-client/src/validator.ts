@@ -1,4 +1,4 @@
-import { createHttp, type HttpOptions } from "./http.js"
+import { createHttp, type HttpOptions } from "./http"
 import {
   dsoPartySchema,
   emptySchema,
@@ -11,7 +11,7 @@ import {
   type ValidatorVersion,
   type WalletBalance,
   type WalletTransaction,
-} from "./schemas.js"
+} from "./schemas"
 
 const json = (body: unknown): RequestInit => ({
   method: "POST",

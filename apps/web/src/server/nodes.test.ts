@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, expect, test } from "vitest"
-import { open } from "./crypto.js"
-import { resetDbForTests } from "./db.js"
-import { HttpError } from "./route-helpers.js"
+import { open } from "./crypto"
+import { resetDbForTests } from "./db"
+import { HttpError } from "./route-helpers"
 import {
   createNode,
   deleteNode,
@@ -10,7 +10,7 @@ import {
   listNodes,
   nodeInputSchema,
   updateNode,
-} from "./nodes.js"
+} from "./nodes"
 
 beforeAll(() => {
   process.env.APP_SECRET = "b".repeat(64)

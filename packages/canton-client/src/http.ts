@@ -1,5 +1,5 @@
 import type { ZodType } from "zod"
-import { CantonApiError } from "./errors.js"
+import { CantonApiError } from "./errors"
 
 export type HttpOptions = {
   baseUrl: string

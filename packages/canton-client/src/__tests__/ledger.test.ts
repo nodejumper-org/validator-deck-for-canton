@@ -1,7 +1,7 @@
 import { expect, test } from "vitest"
-import { createLedgerClient } from "../ledger.js"
-import * as f from "./fixtures.js"
-import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers.js"
+import { createLedgerClient } from "../ledger"
+import * as f from "./fixtures"
+import { asFetch, callAt, fetchSpy, jsonResponse, rejection } from "./helpers"
 
 /** Builds a client plus the fetch spy driving it, replying with each payload in turn. */
 function harness(...payloads: unknown[]) {

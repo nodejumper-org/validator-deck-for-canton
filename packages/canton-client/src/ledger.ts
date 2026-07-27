@@ -1,5 +1,5 @@
-import { CantonApiError } from "./errors.js"
-import { createHttp, type HttpOptions } from "./http.js"
+import { CantonApiError } from "./errors"
+import { createHttp, type HttpOptions } from "./http"
 import {
   allocatePartySchema,
   connectedSynchronizersSchema,
@@ -18,7 +18,7 @@ import {
   type PartyDetails,
   type UserRight,
   type VettedPackage,
-} from "./schemas.js"
+} from "./schemas"
 
 /** Builds "?a=1&b=2", dropping only undefined and empty-string values. */
 function query(params: Record<string, string | number | boolean | undefined>): string {
