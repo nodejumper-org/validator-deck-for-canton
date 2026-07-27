@@ -15,7 +15,7 @@
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate --workspace apps/web",
     "db:studio": "npm run db:studio --workspace apps/web",
-    "smoke": "node --env-file=.env packages/canton-client/scripts/smoke.mjs"
+    "smoke": "node --env-file=.env ./node_modules/vitest/vitest.mjs run packages/canton-client/src/__tests__/live.test.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
