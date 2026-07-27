@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
-import type { NodeSummary, TestResult } from "./types"
+import type { NodeOverview, NodeSummary, TestResult } from "./types"
 
 export const queryKeys = {
   nodes: () => ["nodes"] as const,
@@ -81,5 +81,15 @@ export function useTestNode() {
   return useMutation({
     mutationFn: (nodeId: string) => api<TestResult>(`/api/nodes/${nodeId}/test`, { method: "POST" }),
     onError: (e: ApiError) => toast.error(e.message),
+  })
+}
+
+// ---------------------------------------------------------------- node detail
+
+export function useOverview(nodeId: string) {
+  return useQuery({
+    queryKey: queryKeys.overview(nodeId),
+    queryFn: () => api<NodeOverview>(`/api/nodes/${nodeId}/overview`),
+    enabled: Boolean(nodeId),
   })
 }
