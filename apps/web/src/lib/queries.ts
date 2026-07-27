@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
-import type { NodeOverview, NodeSummary, TestResult } from "./types"
+import type { LedgerUser, NodeOverview, NodeSummary, TestResult, UserRight } from "./types"
 
 export const queryKeys = {
   nodes: () => ["nodes"] as const,
@@ -92,4 +92,102 @@ export function useOverview(nodeId: string) {
     queryFn: () => api<NodeOverview>(`/api/nodes/${nodeId}/overview`),
     enabled: Boolean(nodeId),
   })
+}
+
+// ---------------------------------------------------------------------- users
+
+/** Invalidates a node's own queries plus the cross-node dashboard. */
+function useNodeScopedMutation<TArgs, TResult>(
+  nodeId: string,
+  run: (args: TArgs) => Promise<TResult>,
+  successMessage: (result: TResult, args: TArgs) => string,
+  extraKeys: readonly unknown[][] = [],
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (result, args) => {
+      toast.success(successMessage(result, args))
+      void qc.invalidateQueries({ queryKey: ["nodes", nodeId] })
+      void qc.invalidateQueries({ queryKey: queryKeys.dashboard() })
+      for (const key of extraKeys) void qc.invalidateQueries({ queryKey: key })
+    },
+    onError: (e: ApiError) => toast.error(e.message),
+  })
+}
+
+export function useUsers(nodeId: string) {
+  return useQuery({
+    queryKey: queryKeys.users(nodeId),
+    queryFn: () => api<{ users: LedgerUser[] }>(`/api/nodes/${nodeId}/users`).then((r) => r.users),
+    enabled: Boolean(nodeId),
+  })
+}
+
+export function useCreateUser(nodeId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    (input: { userId: string; primaryParty?: string; rights?: UserRight[] }) =>
+      api<{ user: LedgerUser }>(`/api/nodes/${nodeId}/users`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    (r) => `Created user ${r.user.id}`,
+  )
+}
+
+export function useUpdateUser(nodeId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    ({ userId, ...body }: { userId: string; primaryParty?: string; isDeactivated?: boolean }) =>
+      api<{ user: LedgerUser }>(`/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    (r) => (r.user.isDeactivated ? `Deactivated ${r.user.id}` : `Updated ${r.user.id}`),
+  )
+}
+
+export function useDeleteUser(nodeId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    (userId: string) =>
+      api<void>(`/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}`, { method: "DELETE" }),
+    (_r, userId) => `Deleted user ${userId}`,
+  )
+}
+
+export function useUserRights(nodeId: string, userId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.rights(nodeId, userId),
+    queryFn: () =>
+      api<{ rights: UserRight[] }>(
+        `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
+      ).then((r) => r.rights),
+    enabled: enabled && Boolean(nodeId && userId),
+  })
+}
+
+export function useGrantRights(nodeId: string, userId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    (rights: UserRight[]) =>
+      api<{ rights: UserRight[] }>(
+        `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
+        { method: "POST", body: JSON.stringify({ rights }) },
+      ),
+    (_r, rights) => `Granted ${rights.length === 1 ? rights[0]!.kind : `${rights.length} rights`}`,
+  )
+}
+
+export function useRevokeRights(nodeId: string, userId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    (rights: UserRight[]) =>
+      api<{ rights: UserRight[] }>(
+        `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
+        { method: "PATCH", body: JSON.stringify({ rights }) },
+      ),
+    (_r, rights) => `Revoked ${rights.length === 1 ? rights[0]!.kind : `${rights.length} rights`}`,
+  )
 }
