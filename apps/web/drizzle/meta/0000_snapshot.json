@@ -1,0 +1,119 @@
+{
+  "id": "49e47e1b-619b-4df1-8503-ec74aefaf77c",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.nodes": {
+      "name": "nodes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network": {
+          "name": "network",
+          "type": "network",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'devnet'"
+        },
+        "ledger_api_url": {
+          "name": "ledger_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator_api_url": {
+          "name": "validator_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auth_token_url": {
+          "name": "auth_token_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_client_id": {
+          "name": "auth_client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_client_secret_enc": {
+          "name": "auth_client_secret_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_audience": {
+          "name": "auth_audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auth_scope": {
+          "name": "auth_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.network": {
+      "name": "network",
+      "schema": "public",
+      "values": [
+        "devnet",
+        "testnet",
+        "mainnet",
+        "local"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
