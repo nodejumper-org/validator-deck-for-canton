@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: canton-dashboard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: canton
+      POSTGRES_PASSWORD: canton
+      POSTGRES_DB: canton_dashboard
+    ports:
+      - "${DB_PORT:-5434}:5432"
+    volumes:
+      # Postgres 18+ wants a single mount at /var/lib/postgresql, not .../data —
+      # it stores data in a major-version subdirectory so pg_upgrade --link works.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canton -d canton_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    profiles: ["app"]
+    build: .
+    container_name: canton-dashboard-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://canton:canton@db:5432/canton_dashboard
+      # Compose interpolates every service even when only `db` is started, so this
+      # cannot be a required variable. crypto.ts fails loudly if it is empty.
+      APP_SECRET: ${APP_SECRET:-}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:
