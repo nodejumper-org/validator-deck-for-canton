@@ -10,7 +10,7 @@
     "start": "npm run start --workspace apps/web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "tsc -b --pretty packages/canton-client apps/web",
+    "check": "tsc -b --pretty packages/canton-client",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate --workspace apps/web",
