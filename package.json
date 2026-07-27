@@ -2,15 +2,20 @@
   "name": "canton-validator-dashboard",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20.11" },
-  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace apps/web",
     "build": "npm run build --workspace apps/web",
     "start": "npm run start --workspace apps/web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "tsc -b --pretty packages/canton-client",
+    "check": "tsc -b --pretty packages/canton-client && npm run typecheck --workspace apps/web",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate --workspace apps/web",
