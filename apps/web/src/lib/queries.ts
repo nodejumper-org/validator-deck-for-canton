@@ -3,7 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
-import type { LedgerUser, NodeOverview, NodeSummary, TestResult, UserRight } from "./types"
+import type {
+  LedgerUser,
+  LocalScanState,
+  NodeOverview,
+  NodeSummary,
+  PartiesPage,
+  PartyDetails,
+  TestResult,
+  UserRight,
+} from "./types"
 
 export const queryKeys = {
   nodes: () => ["nodes"] as const,
@@ -189,5 +198,62 @@ export function useRevokeRights(nodeId: string, userId: string) {
         { method: "PATCH", body: JSON.stringify({ rights }) },
       ),
     (_r, rights) => `Revoked ${rights.length === 1 ? rights[0]!.kind : `${rights.length} rights`}`,
+  )
+}
+
+// -------------------------------------------------------------------- parties
+
+export function useParties(nodeId: string, opts: { filter: string; pageToken: string }) {
+  return useQuery({
+    queryKey: queryKeys.parties(nodeId, opts),
+    queryFn: () => {
+      const q = new URLSearchParams({ pageSize: "100" })
+      if (opts.filter) q.set("filter", opts.filter)
+      if (opts.pageToken) q.set("pageToken", opts.pageToken)
+      return api<PartiesPage>(`/api/nodes/${nodeId}/parties?${q}`)
+    },
+    enabled: Boolean(nodeId),
+    placeholderData: (previous) => previous,
+  })
+}
+
+/**
+ * Polls while the server-side scan is running. The scan takes about a minute on
+ * devnet, so this is the one query in the app that refetches on a timer.
+ */
+export function useLocalParties(nodeId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.localParties(nodeId),
+    queryFn: () => api<LocalScanState>(`/api/nodes/${nodeId}/parties/local`),
+    enabled: enabled && Boolean(nodeId),
+    refetchInterval: (query) => (query.state.data?.status === "scanning" ? 2000 : false),
+    // The scan takes about a minute, so an operator will very likely switch tabs
+    // while it runs. Without this the poll pauses and the page looks frozen.
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+  })
+}
+
+export function useRescanLocalParties(nodeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api<LocalScanState>(`/api/nodes/${nodeId}/parties/local`, { method: "POST" }),
+    onSuccess: (state) => {
+      qc.setQueryData(queryKeys.localParties(nodeId), state)
+    },
+    onError: (e: ApiError) => toast.error(e.message),
+  })
+}
+
+export function useAllocateParty(nodeId: string) {
+  return useNodeScopedMutation(
+    nodeId,
+    (partyIdHint: string) =>
+      api<{ party: PartyDetails }>(`/api/nodes/${nodeId}/parties`, {
+        method: "POST",
+        body: JSON.stringify({ partyIdHint }),
+      }),
+    (r) => `Allocated ${r.party.party}`,
   )
 }
