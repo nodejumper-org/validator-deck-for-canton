@@ -4,14 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
 import type {
+  DarUploadResult,
+  DashboardResult,
   LedgerUser,
   LocalScanState,
   NodeOverview,
   NodeSummary,
+  PackagesResult,
   PartiesPage,
   PartyDetails,
   TestResult,
   UserRight,
+  ValidatorSummary,
 } from "./types"
 
 export const queryKeys = {
@@ -256,4 +260,53 @@ export function useAllocateParty(nodeId: string) {
       }),
     (r) => `Allocated ${r.party.party}`,
   )
+}
+
+// ------------------------------------------------------------------- packages
+
+export function usePackages(nodeId: string) {
+  return useQuery({
+    queryKey: queryKeys.packages(nodeId),
+    queryFn: () => api<PackagesResult>(`/api/nodes/${nodeId}/packages`),
+    enabled: Boolean(nodeId),
+  })
+}
+
+export function useUploadDar(nodeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { file: File; vetAllPackages: boolean; validateOnly: boolean }) => {
+      const form = new FormData()
+      form.set("file", input.file)
+      form.set("vetAllPackages", String(input.vetAllPackages))
+      form.set("validateOnly", String(input.validateOnly))
+      return api<DarUploadResult>(`/api/nodes/${nodeId}/dars`, { method: "POST", body: form })
+    },
+    onSuccess: (result) => {
+      if (!result.validated) {
+        void qc.invalidateQueries({ queryKey: queryKeys.packages(nodeId) })
+        void qc.invalidateQueries({ queryKey: queryKeys.dashboard() })
+      }
+    },
+    // The dialog renders the error inline, so no toast here.
+  })
+}
+
+// ------------------------------------------------------------------ validator
+
+export function useValidator(nodeId: string) {
+  return useQuery({
+    queryKey: queryKeys.validator(nodeId),
+    queryFn: () => api<ValidatorSummary>(`/api/nodes/${nodeId}/validator`),
+    enabled: Boolean(nodeId),
+  })
+}
+
+// ------------------------------------------------------------------ dashboard
+
+export function useDashboard() {
+  return useQuery({
+    queryKey: queryKeys.dashboard(),
+    queryFn: () => api<DashboardResult>("/api/dashboard"),
+  })
 }
