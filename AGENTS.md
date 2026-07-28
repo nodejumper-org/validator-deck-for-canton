@@ -34,6 +34,28 @@ account is always `ownerId`.
 cookie exists, because it runs before render where the database is unreachable.
 Real verification happens per route.
 
+**A node's credential needs two unrelated things at once.** Canton authorizes by
+the token's `sub` claim, which must name a *ledger user* on the participant. That
+user carries rights (`ParticipantAdmin`, `CanActAs`) on the participant, and —
+separately — a wallet install held by the Splice validator app. Neither implies
+the other. A registered node uses **one** token for every call, so its `sub` must
+have both: `ParticipantAdmin` or the users/parties/packages pages fail, an
+onboarded wallet or `/validator` returns `No wallet found`.
+
+Each network therefore has its own Keycloak client `deck-backend` whose `sub` is
+pinned to a ledger user also called `deck-backend`, created for the deck alone.
+Pinning is what the hardcoded-claim mapper in `kc-desk-client.sh` on the Keycloak
+host does; a plain service-account client would carry its own UUID instead. Do
+not point a node at the validator's own `validator-app-backend` (its secret is
+shared with the running validator) or at `WALLET_ADMIN_USER` (a human Wallet UI
+login that lacks `ParticipantAdmin`).
+
+**Onboarding a wallet is `POST /api/validator/v0/admin/users`** with
+`{name, party_id}`; `/offboard` reverses it. It also creates the ledger user with
+`CanActAs` if missing, so grant `ParticipantAdmin` afterwards. Neither call is in
+`packages/canton-client` — the Splice validator API ships no OpenAPI spec in the
+node bundle, and this shape was read out of the wallet UI's minified bundle.
+
 **Package vetting must be filtered by participant.** Always send
 `topologyStateFilter.participantIds: [participantId]` — without it the node
 returns 100 other participants and omits ours.
@@ -86,6 +108,11 @@ Tokens live in `apps/web/src/app/globals.css`.
 Nodes are owned, so any server test needs a user first — use `createTestUser()`
 from `src/server/test-support.ts`.
 
+`npm run smoke` points at whichever node `SMOKE_*` names. Against mainnet it
+needs `--testTimeout=30000`: that participant answers far slower than devnet or
+testnet, and on vitest's default 5s several reads time out while the credentials
+are perfectly fine.
+
 ## Deployment
 
 Three compose files, one runtime-configured image promoted between environments:
@@ -108,6 +135,25 @@ is not ready.
 The Dockerfile installs and builds in one stage on purpose: npm nests some
 packages under `apps/web/node_modules`, so copying only the root `node_modules`
 loses them.
+
+## The validator hosts
+
+Not part of this repo, but this is what the registered nodes point at. One host
+per network, each running the splice-validator compose stack behind Caddy in
+Docker (`/home/canton/caddy_docker/Caddyfile`, edited as root, reloaded with
+`docker exec caddy caddy reload`). Caddy resolves upstreams by compose service
+name per dial, which is why it replaced the static nginx.
+
+The deck needs exactly two of the hostnames each host serves:
+`ledger-api.validator.<net>.<domain>` → `participant:7575` and
+`validator-api.validator.<net>.<domain>` → `validator:5003`. All
+three hosts now serve the same set of blocks; devnet additionally has
+`scan-proxy.` for the predecessor RFQ desk.
+
+DNS is a wildcard onto each host, so a missing endpoint looks like a TLS
+handshake failure rather than NXDOMAIN: with no site block Caddy never requests a
+certificate, and the plain-HTTP redirect still answers, which makes the vhost
+look configured when it is not.
 
 ## Commands
 
