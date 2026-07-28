@@ -1,10 +1,10 @@
 import { ledgerFor } from "@/server/client"
-import { handler, HttpError } from "@/server/route-helpers"
+import { authed, HttpError } from "@/server/route-helpers"
 
 /** Enough for any realistic DAR; keeps a stray upload from exhausting memory. */
 const MAX_BYTES = 25 * 1024 * 1024
 
-export const POST = handler(async (req, ctx: RouteContext<"/api/nodes/[id]/dars">) => {
+export const POST = authed(async (req, ctx: RouteContext<"/api/nodes/[id]/dars">, ownerId) => {
   const { id } = await ctx.params
   const form = await req.formData()
   const file = form.get("file")
@@ -20,7 +20,7 @@ export const POST = handler(async (req, ctx: RouteContext<"/api/nodes/[id]/dars"
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer())
-  const ledger = await ledgerFor(id)
+  const ledger = await ledgerFor(id, ownerId)
   const validateOnly = form.get("validateOnly") === "true"
 
   if (validateOnly) {

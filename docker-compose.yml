@@ -32,6 +32,9 @@ services:
       # Compose interpolates every service even when only `db` is started, so this
       # cannot be a required variable. crypto.ts fails loudly if it is empty.
       APP_SECRET: ${APP_SECRET:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      PARTY_SCAN_CRON: ${PARTY_SCAN_CRON:-*/10 * * * *}
       NODE_ENV: production
     ports:
       - "3000:3000"

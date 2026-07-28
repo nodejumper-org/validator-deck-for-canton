@@ -1,9 +1,9 @@
 import { createNode, listNodes, nodeInputSchema } from "@/server/nodes"
-import { handler } from "@/server/route-helpers"
+import { authed } from "@/server/route-helpers"
 
-export const GET = handler(async () => ({ nodes: await listNodes() }))
+export const GET = authed(async (_req, _ctx, ownerId) => ({ nodes: await listNodes(ownerId) }))
 
-export const POST = handler(async (req) => {
+export const POST = authed(async (req, _ctx, ownerId) => {
   const body = nodeInputSchema.parse(await req.json())
-  return { node: await createNode(body) }
+  return { node: await createNode(body, ownerId) }
 })

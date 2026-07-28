@@ -1,5 +1,5 @@
 import { clearTokenCache } from "@canton/client"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { z } from "zod"
 import type { NodeSummary } from "@/lib/types"
@@ -38,7 +38,10 @@ export const nodeUpdateSchema = nodeInputSchema.partial().extend({
 })
 export type NodeUpdate = z.infer<typeof nodeUpdateSchema>
 
-export type PublicNode = Omit<NodeRecord, "authClientSecretEnc" | "createdAt" | "updatedAt"> & {
+export type PublicNode = Omit<
+  NodeRecord,
+  "authClientSecretEnc" | "userId" | "createdAt" | "updatedAt"
+> & {
   hasSecret: boolean
   createdAt: string
   updatedAt: string
@@ -50,7 +53,8 @@ export type PublicNode = Omit<NodeRecord, "authClientSecretEnc" | "createdAt" | 
  * a property of the type instead of a habit.
  */
 export function toPublic(node: NodeRecord): PublicNode {
-  const { authClientSecretEnc, createdAt, updatedAt, ...rest } = node
+  const { authClientSecretEnc, userId, createdAt, updatedAt, ...rest } = node
+  void userId
   return {
     ...rest,
     hasSecret: authClientSecretEnc.length > 0,
@@ -63,30 +67,51 @@ export function toPublic(node: NodeRecord): PublicNode {
 const _publicNodeMatchesWireType: NodeSummary = null as unknown as PublicNode
 void _publicNodeMatchesWireType
 
-export async function listNodes(): Promise<PublicNode[]> {
+/**
+ * Every read and write is scoped by `userId`. A node id alone is never enough to
+ * reach a node: an id belonging to someone else simply reads as not found, which
+ * is also why callers get 404 rather than 403 — the existence of another user's
+ * node is not ours to disclose.
+ */
+export async function listNodes(userId: string): Promise<PublicNode[]> {
   const db = await getDb()
-  const rows = await db.select().from(nodes).orderBy(nodes.createdAt)
+  const rows = await db
+    .select()
+    .from(nodes)
+    .where(eq(nodes.userId, userId))
+    .orderBy(nodes.createdAt)
   return rows.map(toPublic)
 }
 
-export async function getNode(id: string): Promise<NodeRecord | undefined> {
+export async function getNode(id: string, userId: string): Promise<NodeRecord | undefined> {
   const db = await getDb()
-  const [row] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
+  const [row] = await db
+    .select()
+    .from(nodes)
+    .where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
+    .limit(1)
   return row
 }
 
-export async function getPublicNode(id: string): Promise<PublicNode | undefined> {
-  const node = await getNode(id)
+export async function getPublicNode(id: string, userId: string): Promise<PublicNode | undefined> {
+  const node = await getNode(id, userId)
   return node ? toPublic(node) : undefined
 }
 
-export async function createNode(input: NodeInput): Promise<PublicNode> {
+/** Used by the scheduler, which runs system-wide rather than for one user. */
+export async function listAllNodes(): Promise<NodeRecord[]> {
+  const db = await getDb()
+  return db.select().from(nodes).orderBy(nodes.createdAt)
+}
+
+export async function createNode(input: NodeInput, userId: string): Promise<PublicNode> {
   const parsed = nodeInputSchema.parse(input)
   const db = await getDb()
   const [row] = await db
     .insert(nodes)
     .values({
       id: nanoid(12),
+      userId,
       name: parsed.name,
       network: parsed.network,
       ledgerApiUrl: parsed.ledgerApiUrl,
@@ -101,7 +126,11 @@ export async function createNode(input: NodeInput): Promise<PublicNode> {
   return toPublic(row!)
 }
 
-export async function updateNode(id: string, input: NodeUpdate): Promise<PublicNode> {
+export async function updateNode(
+  id: string,
+  input: NodeUpdate,
+  userId: string,
+): Promise<PublicNode> {
   const parsed = nodeUpdateSchema.parse(input)
   const db = await getDb()
 
@@ -117,7 +146,11 @@ export async function updateNode(id: string, input: NodeUpdate): Promise<PublicN
   // Only overwrite the secret when a fresh one was actually supplied.
   if (parsed.authClientSecret) patch.authClientSecretEnc = seal(parsed.authClientSecret)
 
-  const [row] = await db.update(nodes).set(patch).where(eq(nodes.id, id)).returning()
+  const [row] = await db
+    .update(nodes)
+    .set(patch)
+    .where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
+    .returning()
   if (!row) throw new HttpError(404, "NODE_NOT_FOUND", `No node registered with id ${id}`)
 
   // Any credential change invalidates the bearer token cached for this node.
@@ -127,8 +160,8 @@ export async function updateNode(id: string, input: NodeUpdate): Promise<PublicN
   return toPublic(row)
 }
 
-export async function deleteNode(id: string): Promise<void> {
+export async function deleteNode(id: string, userId: string): Promise<void> {
   const db = await getDb()
-  await db.delete(nodes).where(eq(nodes.id, id))
+  await db.delete(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
   clearTokenCache(id)
 }

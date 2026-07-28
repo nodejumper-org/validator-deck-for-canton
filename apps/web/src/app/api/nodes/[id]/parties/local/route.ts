@@ -1,27 +1,32 @@
-import { ledgerFor } from "@/server/client"
-import { getLocalParties, invalidateLocalScan, isStale, startLocalScan } from "@/server/local-parties"
-import { handler } from "@/server/route-helpers"
+import {
+  getLocalParties,
+  invalidateLocalScan,
+  isStale,
+  startLocalScanFor,
+} from "@/server/local-parties"
+import { authed } from "@/server/route-helpers"
 
 type Ctx = RouteContext<"/api/nodes/[id]/parties/local">
 
 /**
- * Returns whatever the cache holds and kicks off a scan when it is cold or stale.
- * The client polls this while `status` is "scanning" — no job queue needed.
+ * Reads the stored result and kicks off a scan when it is cold or stale. The
+ * client polls this while `status` is "scanning".
  */
-export const GET = handler(async (_req, ctx: Ctx) => {
+export const GET = authed(async (_req, ctx: Ctx, ownerId) => {
   const { id } = await ctx.params
-  const state = getLocalParties(id)
+  const state = await getLocalParties(id, ownerId)
 
   if (state.status === "idle" || isStale(state)) {
-    startLocalScan(id, await ledgerFor(id))
+    await startLocalScanFor(id, ownerId)
+    return getLocalParties(id, ownerId)
   }
-  return getLocalParties(id)
+  return state
 })
 
-/** Force a rescan, discarding a fresh cache. */
-export const POST = handler(async (_req, ctx: Ctx) => {
+/** Force a rescan, discarding a fresh result. This is the button in the UI. */
+export const POST = authed(async (_req, ctx: Ctx, ownerId) => {
   const { id } = await ctx.params
-  invalidateLocalScan(id)
-  startLocalScan(id, await ledgerFor(id))
-  return getLocalParties(id)
+  await invalidateLocalScan(id)
+  await startLocalScanFor(id, ownerId)
+  return getLocalParties(id, ownerId)
 })

@@ -2,16 +2,16 @@ import { isCantonApiError } from "@canton/client"
 import type { SurfaceError } from "@/lib/types"
 import { hasValidator, ledgerFor, validatorFor } from "@/server/client"
 import { getPublicNode } from "@/server/nodes"
-import { handler, HttpError } from "@/server/route-helpers"
+import { authed, HttpError } from "@/server/route-helpers"
 
 const message = (e: unknown) => (isCantonApiError(e) ? e.message : String(e))
 
-export const GET = handler(async (_req, ctx: RouteContext<"/api/nodes/[id]/overview">) => {
+export const GET = authed(async (_req, ctx: RouteContext<"/api/nodes/[id]/overview">, ownerId) => {
   const { id } = await ctx.params
-  const node = await getPublicNode(id)
+  const node = await getPublicNode(id, ownerId)
   if (!node) throw new HttpError(404, "NODE_NOT_FOUND", `No node registered with id ${id}`)
 
-  const ledger = await ledgerFor(id)
+  const ledger = await ledgerFor(id, ownerId)
   // Packages need the participant id, so it is fetched first; a failure here just
   // means the packages count is unavailable, not that the page is broken.
   const participantId = await ledger.getParticipantId().catch(() => null)
@@ -23,8 +23,8 @@ export const GET = handler(async (_req, ctx: RouteContext<"/api/nodes/[id]/overv
       ledger.getConnectedSynchronizers(),
       ledger.listUsers({ pageSize: 1000 }),
       participantId ? ledger.listVettedPackages(participantId) : Promise.resolve([]),
-      (await hasValidator(id))
-        ? validatorFor(id).then((v) => v.getVersion())
+      (await hasValidator(id, ownerId))
+        ? validatorFor(id, ownerId).then((v) => v.getVersion())
         : Promise.resolve(null),
     ])
 

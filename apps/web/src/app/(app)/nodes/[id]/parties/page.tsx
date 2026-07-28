@@ -131,7 +131,7 @@ function LocalPartiesTab({ nodeId, active }: { nodeId: string; active: boolean }
   return (
     <DataPanel
       title="Local parties"
-      description="Parties hosted by this participant."
+      description="Parties hosted by this participant, refreshed on a schedule and stored so this page loads instantly."
       actions={
         <Button
           variant="outline"
@@ -140,7 +140,7 @@ function LocalPartiesTab({ nodeId, active }: { nodeId: string; active: boolean }
           onClick={() => rescan.mutate()}
         >
           <RefreshCw className={scanning ? "size-3.5 animate-spin" : "size-3.5"} />
-          {scanning ? "Scanning…" : "Rescan"}
+          {scanning ? "Scanning…" : "Refresh"}
         </Button>
       }
       isLoading={isLoading}
@@ -158,10 +158,10 @@ function LocalPartiesTab({ nodeId, active }: { nodeId: string; active: boolean }
             {data.progress.pages === 1 ? "page" : "pages"} read,{" "}
             {formatCount(data.progress.seen)} parties examined.
           </p>
-          <p className="text-muted-foreground mt-2 text-[12px]">
+          <p className="text-muted-foreground mx-auto mt-2 max-w-lg text-[12px]">
             Local parties are identified by the participant&rsquo;s namespace, which the node
             cannot filter on, so the whole list has to be read. On devnet that takes about a
-            minute.
+            minute. The result is stored, so you only wait for this once.
           </p>
         </div>
       ) : data?.status === "ready" ? (
@@ -173,14 +173,22 @@ function LocalPartiesTab({ nodeId, active }: { nodeId: string; active: boolean }
         ) : (
           <>
             <PartyTable parties={data.parties} showLocal={false} />
-            <div className="text-muted-foreground border-t px-4 py-2.5 text-[12px]">
-              {formatCount(data.parties.length)} local of {formatCount(data.total)} known ·
-              scanned {formatRelativeTime(data.scannedAt)}
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 border-t px-4 py-2.5 text-[12px]">
+              <span>
+                {formatCount(data.parties.length)} local of {formatCount(data.total)} known
+              </span>
+              <span aria-hidden>·</span>
+              <span>last refreshed {formatRelativeTime(data.scannedAt)}</span>
+              <span aria-hidden>·</span>
+              <span>refreshes automatically every 30 minutes</span>
             </div>
           </>
         )
       ) : (
-        <EmptyState title="Ready to scan" hint="Press Rescan to read the full party list." />
+        <EmptyState
+          title="Not scanned yet"
+          hint="Press Refresh to read the full party list. It is stored afterwards, so this is a one-time wait."
+        />
       )}
     </DataPanel>
   )

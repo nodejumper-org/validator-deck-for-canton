@@ -3,7 +3,7 @@ import type { NodeHealth, UserRight, VettedPackage, WalletTransaction } from "@/
 import { netAmountByDay, rewardMix, rightsDistribution, versionSprawl } from "@/server/aggregate"
 import { ledgerFor, validatorFor } from "@/server/client"
 import { listNodes } from "@/server/nodes"
-import { handler } from "@/server/route-helpers"
+import { authed } from "@/server/route-helpers"
 
 const message = (e: unknown) => (isCantonApiError(e) ? e.message : String(e))
 
@@ -23,8 +23,8 @@ type NodeSnapshot = {
   synchronizers: number
 }
 
-export const GET = handler(async () => {
-  const nodes = await listNodes()
+export const GET = authed(async (_req, _ctx, ownerId) => {
+  const nodes = await listNodes(ownerId)
 
   // Nothing here blocks on the local-party scan: the dashboard only calls the
   // endpoints that answer in well under a second.
@@ -48,7 +48,7 @@ export const GET = handler(async () => {
 
       let ledger: LedgerClient | null = null
       try {
-        ledger = await ledgerFor(node.id)
+        ledger = await ledgerFor(node.id, ownerId)
       } catch (e) {
         return {
           health: { ...base, error: message(e), latencyMs: Math.round(performance.now() - started) },
@@ -70,7 +70,7 @@ export const GET = handler(async () => {
         ledger.listUsers({ pageSize: 1000 }),
         participantId ? ledger.listVettedPackages(participantId) : Promise.resolve([]),
         node.validatorApiUrl
-          ? validatorFor(node.id).then(async (v) => ({
+          ? validatorFor(node.id, ownerId).then(async (v) => ({
               version: (await v.getVersion()).version,
               balance: await v.getWalletBalance().catch(() => null),
               transactions: await v.listWalletTransactions({ pageSize: 800 }).catch(() => []),

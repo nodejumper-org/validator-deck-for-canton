@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pg", "@electric-sql/pglite"],
   // Produces apps/web/.next/standalone for the Docker runtime stage.
   output: "standalone",
+  // The default bottom-left indicator sits exactly on the account menu at the
+  // foot of the rail.
+  devIndicators: { position: "bottom-right" },
 }
 
 export default nextConfig

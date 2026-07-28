@@ -64,3 +64,22 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<unknown>) {
     }
   }
 }
+
+/**
+ * Same as `handler`, but resolves the caller's session first and rejects with
+ * 401 when there is none. Every node route uses this — a route that forgets it
+ * would expose another user's node credentials, so the guard is the wrapper
+ * rather than a line inside each handler.
+ */
+export function authed<Ctx>(fn: (req: Request, ctx: Ctx, userId: string) => Promise<unknown>) {
+  return handler<Ctx>(async (req, ctx) => {
+    const { getAuth } = await import("./auth")
+    const auth = await getAuth()
+    const result = await auth.api.getSession({ headers: req.headers })
+
+    if (!result?.user) {
+      throw new HttpError(401, "UNAUTHENTICATED", "Sign in to continue")
+    }
+    return fn(req, ctx, result.user.id)
+  })
+}

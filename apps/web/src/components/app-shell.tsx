@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
 import { NetworkBadge } from "@/components/network-badge"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserMenu } from "@/components/user-menu"
+import { BRAND } from "@/lib/brand"
 import { useNodes } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
@@ -74,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="flex min-w-0 items-center gap-2 pl-1">
             <span className="bg-primary size-2 shrink-0 rounded-full" aria-hidden />
             <span className="font-heading truncate text-[15px] font-semibold tracking-tight">
-              Canton Console
+              {BRAND.name}
             </span>
           </span>
           {/* Top of the rail, not the bottom: the bottom-left corner is where
@@ -115,18 +117,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : null}
         </nav>
 
+        <div className="border-t p-2">
+          <UserMenu />
+        </div>
       </aside>
 
       {/* Compact top bar stands in for the rail below md. */}
       <header className="bg-sidebar fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 md:hidden">
         <Link href="/" className="font-heading text-[15px] font-semibold">
-          Canton Console
+          {BRAND.name}
         </Link>
         <div className="flex items-center gap-2">
           <Link href="/nodes" className="text-muted-foreground text-[13px]">
             Nodes
           </Link>
           <ThemeToggle />
+          <UserMenu />
         </div>
       </header>
 

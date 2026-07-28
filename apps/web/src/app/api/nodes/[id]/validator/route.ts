@@ -1,15 +1,15 @@
 import { isCantonApiError } from "@canton/client"
 import type { SurfaceError } from "@/lib/types"
 import { validatorFor } from "@/server/client"
-import { handler } from "@/server/route-helpers"
+import { authed } from "@/server/route-helpers"
 
 const message = (e: unknown) => (isCantonApiError(e) ? e.message : String(e))
 
-export const GET = handler(async (_req, ctx: RouteContext<"/api/nodes/[id]/validator">) => {
+export const GET = authed(async (_req, ctx: RouteContext<"/api/nodes/[id]/validator">, ownerId) => {
   const { id } = await ctx.params
   // Throws NO_VALIDATOR for a participant-only node, which the page renders as a
   // friendly explanation rather than a failure.
-  const validator = await validatorFor(id)
+  const validator = await validatorFor(id, ownerId)
 
   const [version, ready, validatorUser, dsoPartyId, onboardedUsers, balance, transactions] =
     await Promise.allSettled([

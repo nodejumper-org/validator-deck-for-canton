@@ -1,14 +1,14 @@
 import type { LedgerUser } from "@canton/client"
 import { ledgerFor } from "@/server/client"
-import { handler } from "@/server/route-helpers"
+import { authed } from "@/server/route-helpers"
 import { createUserSchema } from "@/server/validation"
 
 /** Guard against a runaway loop; participants hold far fewer users than this. */
 const MAX_USERS = 1000
 
-export const GET = handler(async (_req, ctx: RouteContext<"/api/nodes/[id]/users">) => {
+export const GET = authed(async (_req, ctx: RouteContext<"/api/nodes/[id]/users">, ownerId) => {
   const { id } = await ctx.params
-  const ledger = await ledgerFor(id)
+  const ledger = await ledgerFor(id, ownerId)
 
   const users: LedgerUser[] = []
   let pageToken = ""
@@ -21,9 +21,9 @@ export const GET = handler(async (_req, ctx: RouteContext<"/api/nodes/[id]/users
   return { users }
 })
 
-export const POST = handler(async (req, ctx: RouteContext<"/api/nodes/[id]/users">) => {
+export const POST = authed(async (req, ctx: RouteContext<"/api/nodes/[id]/users">, ownerId) => {
   const { id } = await ctx.params
   const body = createUserSchema.parse(await req.json())
-  const ledger = await ledgerFor(id)
+  const ledger = await ledgerFor(id, ownerId)
   return { user: await ledger.createUser(body) }
 })

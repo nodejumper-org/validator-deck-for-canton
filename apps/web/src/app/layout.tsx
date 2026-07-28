@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google"
-import { AppShell } from "@/components/app-shell"
+import { BRAND } from "@/lib/brand"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 import { Providers } from "./providers"
@@ -29,8 +29,8 @@ const mono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Canton Console",
-  description: "Operate Canton participant and validator nodes",
+  title: BRAND.name,
+  description: BRAND.tagline,
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -42,7 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <body className="min-h-full antialiased">
         <Providers>
-          <AppShell>{children}</AppShell>
+          {children}
           <Toaster position="bottom-right" />
         </Providers>
       </body>
