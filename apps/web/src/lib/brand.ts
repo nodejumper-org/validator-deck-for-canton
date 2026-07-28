@@ -1,12 +1,22 @@
 /**
- * Product name in one place.
+ * Product identity in one place.
  *
- * "Deck" as in a control deck — the surface an operator stands at to run
- * something. It avoids "console" (every tool is a console) and sidesteps the
- * crypto-loaded alternatives: "bridge" already means something else entirely in
- * this industry, and "helm" belongs to Kubernetes.
+ * Two forms because the navigation rail is 224px wide: `fullName` is the product,
+ * `name` is what fits next to a logo mark. Use `fullName` wherever there is room
+ * — page titles, the sign-in card, documentation.
  */
 export const BRAND = {
-  name: "Canton Deck",
+  name: "Validator Deck",
+  fullName: "Validator Deck for Canton",
   tagline: "Operate Canton participant and validator nodes",
+
+  /**
+   * Prefix for better-auth's cookies.
+   *
+   * `proxy.ts` matches on this to decide whether a request looks signed in, and
+   * it runs in a separate runtime from `server/auth.ts` — so both import the
+   * value from here rather than repeating a literal that could drift.
+   * Changing it signs everyone out.
+   */
+  cookiePrefix: "validator-deck",
 } as const

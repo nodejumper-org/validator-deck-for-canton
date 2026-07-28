@@ -1,4 +1,4 @@
-# Canton Deck — notes for future sessions
+# Validator Deck for Canton — notes for future sessions
 
 ## Layout
 
@@ -86,6 +86,29 @@ Tokens live in `apps/web/src/app/globals.css`.
 Nodes are owned, so any server test needs a user first — use `createTestUser()`
 from `src/server/test-support.ts`.
 
+## Deployment
+
+Three compose files, one runtime-configured image promoted between environments:
+`docker-compose.yml` builds locally, `.dev.yml` pulls `dev` and binds to
+127.0.0.1 behind the host's proxy, `.prod.yml` pulls a release tag and bundles
+Caddy on 80/443.
+
+Nothing environment-specific is baked into the image — no `NEXT_PUBLIC_*`, no
+build args. If you ever need a build-time value, the promote-the-same-artifact
+property is what you are giving up.
+
+The host `~/validator-deck/.env` is operator-managed; CI rewrites only its
+`IMAGE_TAG` line. `env_file` does not interpolate, so the database password must
+appear literally in both `POSTGRES_PASSWORD` and `DATABASE_URL`.
+
+`/api/health` is deliberately unauthenticated (compose healthchecks have no
+session) and touches the database, since a web process that cannot reach Postgres
+is not ready.
+
+The Dockerfile installs and builds in one stage on purpose: npm nests some
+packages under `apps/web/node_modules`, so copying only the root `node_modules`
+loses them.
+
 ## Commands
 
 ```bash
@@ -94,6 +117,7 @@ npm test            # offline
 npm run smoke       # live, read-only, needs SMOKE_* in .env
 npm run check       # tsc across both workspaces
 npm run db:up       # PostgreSQL 18 in Docker
+docker compose --profile app up --build   # whole stack in Docker
 npm run db:generate # new migration after editing schema.ts
 ```
 

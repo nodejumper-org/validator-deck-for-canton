@@ -1,0 +1,67 @@
+# Deploy stack for the prod environment (VPS).
+#
+# The deploy workflow scp's this file (renamed to docker-compose.yml) and the
+# Caddyfile to ~/validator-deck/, then runs `docker compose pull && up -d --wait`.
+# Runtime config lives in a persistent ./.env on the host (see .env.example); the
+# workflow rewrites only the IMAGE_TAG line.
+#
+# Only Caddy publishes host ports; web is reached over the private compose
+# network by service name. Caddy terminates TLS with automatic Let's Encrypt
+# certificates for VALIDATOR_DECK_DOMAIN.
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: validator-deck-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: canton
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: canton_dashboard
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canton -d canton_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:2
+    container_name: validator-deck-caddy
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/vbloher/validator-deck-web:${IMAGE_TAG:-latest}
+    container_name: validator-deck-web
+    restart: unless-stopped
+    env_file: .env
+    # No published ports: Caddy is the only way in.
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # First boot runs migrations before serving.
+      start_period: 30s
+
+volumes:
+  db-data: {}
+  caddy-data: {}
+  caddy-config: {}

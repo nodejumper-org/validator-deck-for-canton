@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { BRAND } from "@/lib/brand"
 import { getDb } from "./db"
 import * as schema from "./schema"
 
@@ -45,7 +46,7 @@ async function build() {
     advanced: {
       // Registration is open by design: this is self-hosted, and whoever runs it
       // decides who can reach it. See the security note in the README.
-      cookiePrefix: "canton-deck",
+      cookiePrefix: BRAND.cookiePrefix,
     },
   })
 }

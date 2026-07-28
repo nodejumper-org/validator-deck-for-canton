@@ -1,0 +1,20 @@
+name: Deploy to dev
+
+on:
+  push:
+    branches: [main, master]
+  # Redeploying the same commit is occasionally what you want (host .env change,
+  # rolled-back container), so allow it by hand too.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: dev
+      image-tag: dev
+    secrets: inherit

@@ -1,0 +1,23 @@
+# Reverse proxy + automatic HTTPS for the prod environment.
+#
+# The hostname and the ACME contact address come from the compose .env
+# (VALIDATOR_DECK_DOMAIN / CADDY_ACME_EMAIL). Used only by
+# docker-compose.prod.yml — the dev stack is fronted by the host's own proxy.
+{
+	email {$CADDY_ACME_EMAIL}
+}
+
+{$VALIDATOR_DECK_DOMAIN} {
+	reverse_proxy web:3000
+
+	# The app stores credentials that administer Canton nodes; keep browsers
+	# strict about how they treat it.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	encode zstd gzip
+}

@@ -29,7 +29,7 @@ const mono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: BRAND.name,
+  title: BRAND.fullName,
   description: BRAND.tagline,
 }
 

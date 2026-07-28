@@ -1,12 +1,16 @@
-node_modules
 **/node_modules
-.next
 **/.next
+**/dist
+**/coverage
 .git
-.env
-.env.local
+.github
+# Specs and plans are not needed to build the image.
 docs
 data
-coverage
 *.log
+*.tsbuildinfo
 .remember
+# Secrets — runtime config comes from compose env_file, never from the image.
+.env
+.env.*
+!.env.example

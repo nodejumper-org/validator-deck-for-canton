@@ -1,4 +1,4 @@
-# Canton Deck
+# Validator Deck for Canton
 
 A web app for operating Canton participant and validator nodes: inspect node
 identity and health, manage ledger users and their rights, browse and allocate
@@ -51,8 +51,69 @@ build, and start. That runs automatically.
 docker compose --profile app up --build
 ```
 
-This starts PostgreSQL and the app together on port 3000. Set `APP_SECRET` in
-`.env` first — compose passes it through.
+Builds the image from source and starts it alongside PostgreSQL on port 3000.
+Fill `APP_SECRET` and `BETTER_AUTH_SECRET` in `.env` first — compose passes them
+through.
+
+For day-to-day work you usually want the database in Docker and Next on the host,
+which is what `npm run db:up && npm run dev` gives you.
+
+## Deployment
+
+Three compose files, one image:
+
+| File | Used for |
+|---|---|
+| `docker-compose.yml` | local — builds from source |
+| `docker-compose.dev.yml` | dev host — pulls the `dev` image, binds to `127.0.0.1`, no Caddy |
+| `docker-compose.prod.yml` | prod host — pulls a release tag, bundles Caddy on 80/443 with automatic TLS |
+
+The image reads every setting at runtime, so **the same artifact is promoted from
+dev to prod** rather than rebuilt. Nothing environment-specific is baked in.
+
+### How a deploy runs
+
+`.github/workflows/deploy-dev.yml` fires on a push to the default branch and
+tags the image `dev`. `deploy-prod.yml` fires on a `v*.*.*` tag and uses that tag.
+Both call the same reusable workflow, which:
+
+1. runs `npm run check` and `npm test`,
+2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
+3. copies the matching compose file (and `Caddyfile` for prod) to
+   `~/validator-deck/` on the host,
+4. rewrites only the `IMAGE_TAG` line in the host `.env`, then
+   `docker compose pull && up -d --wait`.
+
+The host `.env` is operator-managed and survives deploys. Create it once from
+`.env.example`; the workflow fails loudly if it is missing rather than starting
+with defaults.
+
+### First-time host setup
+
+```bash
+mkdir -p ~/validator-deck && cd ~/validator-deck
+# copy .env.example here as .env, then fill in:
+#   APP_SECRET, BETTER_AUTH_SECRET   openssl rand -hex 32, twice
+#   POSTGRES_PASSWORD                and the matching password inside DATABASE_URL
+#   DATABASE_URL                     postgres://canton:<pw>@db:5432/canton_dashboard
+#   BETTER_AUTH_URL                  the public https origin, exactly
+#   VALIDATOR_DECK_DOMAIN            prod only, the hostname Caddy serves
+#   CADDY_ACME_EMAIL                 prod only
+```
+
+`env_file` does not interpolate, so the database password has to be written out
+literally in both `POSTGRES_PASSWORD` and `DATABASE_URL`.
+
+Repository settings the workflows expect — as **secrets** on each GitHub
+Environment (`dev`, `prod`): `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, and
+optionally `SSH_PORT`.
+
+### Prod versus dev
+
+Prod publishes 80/443 through Caddy and nothing else; the web and database
+containers are reachable only on the private compose network. Dev publishes the
+web container on `127.0.0.1:3000` on the assumption that the host already runs a
+reverse proxy — set `WEB_PORT` if something else already holds that port.
 
 ## Accounts
 
@@ -153,9 +214,17 @@ PGlite instance the tests use — so tests exercise the real migrations.
   sent to the browser** — responses carry `hasSecret: true` instead.
 - Nodes are scoped to their owner on every read and write.
 
-Before putting this on a public network: serve it over HTTPS, set
-`BETTER_AUTH_URL` to the real origin, use distinct `APP_SECRET` and
-`BETTER_AUTH_SECRET` values, and treat the database as secret material — it holds
-credentials that can administer your Canton nodes. Registration is open by
-default; if that is not what you want, restrict access at the network edge or add
-an invite check in `apps/web/src/server/auth.ts`.
+Before putting this on a public network:
+
+- serve it over HTTPS — `docker-compose.prod.yml` does this via Caddy, and the
+  Caddyfile sets HSTS, `nosniff`, `DENY` framing, and a strict referrer policy;
+- set `BETTER_AUTH_URL` to the real origin, exactly, including the scheme;
+- use distinct `APP_SECRET` and `BETTER_AUTH_SECRET` values;
+- treat the database as secret material — it holds credentials that can
+  administer your Canton nodes.
+
+Registration is open by default. If that is not what you want, restrict access at
+the network edge or add an invite check in `apps/web/src/server/auth.ts`.
+
+The container runs as the unprivileged `node` user and the image carries no
+`.env` — runtime configuration comes from compose only.

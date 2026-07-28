@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      # The suite runs in-process Postgres (PGlite), so no service container is
+      # needed. The live Canton checks skip themselves without SMOKE_* set.
+      - run: npm test
+      - run: npm run build

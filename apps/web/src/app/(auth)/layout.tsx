@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="mb-6 flex items-center gap-2">
           <span className="bg-primary size-2 rounded-full" aria-hidden />
           <span className="font-heading text-[17px] font-semibold tracking-tight">
-            {BRAND.name}
+            {BRAND.fullName}
           </span>
         </div>
         {children}

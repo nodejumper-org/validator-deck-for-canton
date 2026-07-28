@@ -1,0 +1,122 @@
+name: Deploy (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'GitHub Environment to deploy to (dev or prod)'
+        type: string
+        required: true
+      image-tag:
+        description: 'Image tag to publish and pull (e.g. dev or v1.2.3)'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/validator-deck-web
+          tags: |
+            type=raw,value=${{ inputs.image-tag }}
+      # The app reads every setting at runtime, so one image serves both
+      # environments — a prod release is the same artifact promoted, not rebuilt.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy compose config to host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          # dev has no Caddy: the host's own reverse proxy fronts the web
+          # container, which docker-compose.dev.yml binds to 127.0.0.1.
+          source: ${{ inputs.environment == 'dev' && 'docker-compose.dev.yml' || 'docker-compose.prod.yml,Caddyfile' }}
+          target: 'validator-deck/'
+
+      - name: Pull image and restart
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          IMAGE_TAG: ${{ inputs.image-tag }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: GHCR_TOKEN,GHCR_USER,IMAGE_TAG,ENVIRONMENT
+          script: |
+            set -euo pipefail
+            cd ~/validator-deck
+
+            # The host .env is operator-managed and persists across deploys;
+            # only the image tag is ours to change.
+            if [ ! -f .env ]; then
+              echo "No ~/validator-deck/.env on the host. Create it from .env.example first." >&2
+              exit 1
+            fi
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            mv -f "docker-compose.${ENVIRONMENT}.yml" docker-compose.yml
+
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
+            else
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
+            fi
+
+            docker compose pull
+            # --remove-orphans clears containers from a previous compose file,
+            # e.g. caddy after a prod-to-dev switch.
+            docker compose up -d --wait --remove-orphans
+            docker logout ghcr.io
+            docker image prune -af
