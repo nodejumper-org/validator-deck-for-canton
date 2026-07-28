@@ -1,0 +1,2 @@
+Static assets served from the site root go here. Tracked so the directory
+exists in a fresh checkout — the Dockerfile copies it into the runtime image.
