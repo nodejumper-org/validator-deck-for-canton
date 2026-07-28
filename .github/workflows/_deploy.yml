@@ -79,7 +79,7 @@ jobs:
           # dev has no Caddy: the host's own reverse proxy fronts the web
           # container, which docker-compose.dev.yml binds to 127.0.0.1.
           source: ${{ inputs.environment == 'dev' && 'docker-compose.dev.yml' || 'docker-compose.prod.yml,Caddyfile' }}
-          target: 'validator-deck/'
+          target: 'canton-validator-deck/'
 
       - name: Pull image and restart
         uses: appleboy/ssh-action@v1.2.0
@@ -96,12 +96,12 @@ jobs:
           envs: GHCR_TOKEN,GHCR_USER,IMAGE_TAG,ENVIRONMENT
           script: |
             set -euo pipefail
-            cd ~/validator-deck
+            cd ~/canton-validator-deck
 
             # The host .env is operator-managed and persists across deploys;
             # only the image tag is ours to change.
             if [ ! -f .env ]; then
-              echo "No ~/validator-deck/.env on the host. Create it from .env.example first." >&2
+              echo "No ~/canton-validator-deck/.env on the host. Create it from .env.example first." >&2
               exit 1
             fi
 

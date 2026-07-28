@@ -80,7 +80,7 @@ Both call the same reusable workflow, which:
 1. runs `npm run check` and `npm test`,
 2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
 3. copies the matching compose file (and `Caddyfile` for prod) to
-   `~/validator-deck/` on the host,
+   `~/canton-validator-deck/` on the host,
 4. rewrites only the `IMAGE_TAG` line in the host `.env`, then
    `docker compose pull && up -d --wait`.
 
@@ -91,7 +91,7 @@ with defaults.
 ### First-time host setup
 
 ```bash
-mkdir -p ~/validator-deck && cd ~/validator-deck
+mkdir -p ~/canton-validator-deck && cd ~/canton-validator-deck
 # copy .env.example here as .env, then fill in:
 #   APP_SECRET, BETTER_AUTH_SECRET   openssl rand -hex 32, twice
 #   POSTGRES_PASSWORD                and the matching password inside DATABASE_URL

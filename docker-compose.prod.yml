@@ -1,7 +1,7 @@
 # Deploy stack for the prod environment (VPS).
 #
 # The deploy workflow scp's this file (renamed to docker-compose.yml) and the
-# Caddyfile to ~/validator-deck/, then runs `docker compose pull && up -d --wait`.
+# Caddyfile to ~/canton-validator-deck/, then runs `docker compose pull && up -d --wait`.
 # Runtime config lives in a persistent ./.env on the host (see .env.example); the
 # workflow rewrites only the IMAGE_TAG line.
 #

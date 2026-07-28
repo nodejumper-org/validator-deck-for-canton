@@ -97,7 +97,7 @@ Nothing environment-specific is baked into the image — no `NEXT_PUBLIC_*`, no
 build args. If you ever need a build-time value, the promote-the-same-artifact
 property is what you are giving up.
 
-The host `~/validator-deck/.env` is operator-managed; CI rewrites only its
+The host `~/canton-validator-deck/.env` is operator-managed; CI rewrites only its
 `IMAGE_TAG` line. `env_file` does not interpolate, so the database password must
 appear literally in both `POSTGRES_PASSWORD` and `DATABASE_URL`.
 

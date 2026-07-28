@@ -1,7 +1,7 @@
 # Deploy stack for the dev environment (VPS).
 #
 # The deploy workflow scp's this file (renamed to docker-compose.yml) to
-# ~/validator-deck/, then runs `docker compose pull && up -d --wait`. Runtime
+# ~/canton-validator-deck/, then runs `docker compose pull && up -d --wait`. Runtime
 # config lives in a persistent ./.env on the host (see .env.example); the
 # workflow rewrites only the IMAGE_TAG line.
 #
@@ -18,8 +18,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: canton_dashboard
     ports:
-      # Exposed on loopback only, for psql and backups from the host.
-      - "127.0.0.1:${DB_PORT:-5434}:5432"
+      # Exposed on loopback only, for psql and backups from the host. The deploy
+      # host is shared, so both defaults avoid ports other stacks already hold.
+      - "127.0.0.1:${DB_PORT:-5437}:5432"
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
@@ -37,7 +38,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_PORT:-3300}:3000"
     healthcheck:
       test:
         ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
