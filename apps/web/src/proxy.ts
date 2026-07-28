@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { BRAND } from "@/lib/brand"
+import { hasSessionCookie } from "@/lib/session-cookie"
 
 const PUBLIC_PATHS = ["/sign-in", "/sign-up"]
 
@@ -15,9 +15,7 @@ const PUBLIC_PATHS = ["/sign-in", "/sign-up"]
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  const hasSession = req.cookies
-    .getAll()
-    .some((c) => c.name.startsWith(`${BRAND.cookiePrefix}.session_token`) && c.value.length > 0)
+  const hasSession = hasSessionCookie(req.cookies.getAll())
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
 
