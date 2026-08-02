@@ -1,9 +1,10 @@
 "use client"
 
-import { Boxes, LayoutDashboard, Server, Users, Wallet, Landmark, Package } from "lucide-react"
+import { Boxes, Gauge, Server, Users, Wallet, Landmark, Package } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
+import { LogoMark } from "@/components/logo"
 import { NetworkBadge } from "@/components/network-badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
@@ -12,7 +13,9 @@ import { useNodes } from "@/lib/queries"
 import { cn } from "@/lib/utils"
 
 const TOP_LEVEL = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  // Gauge, not LayoutDashboard: the logo mark above it is already a 2×2 of
+  // squares, and two grids stacked in the rail read as the same glyph twice.
+  { href: "/", label: "Dashboard", icon: Gauge },
   { href: "/nodes", label: "Nodes", icon: Server },
 ]
 
@@ -74,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="bg-sidebar sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r md:flex">
         <div className="flex items-center justify-between gap-2 px-3 py-3">
           <span className="flex min-w-0 items-center gap-2 pl-1">
-            <span className="bg-primary size-2 shrink-0 rounded-full" aria-hidden />
+            <LogoMark className="size-4" />
             <span className="font-heading truncate text-[15px] font-semibold tracking-tight">
               {BRAND.name}
             </span>
@@ -124,7 +127,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Compact top bar stands in for the rail below md. */}
       <header className="bg-sidebar fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 md:hidden">
-        <Link href="/" className="font-heading text-[15px] font-semibold">
+        <Link href="/" className="font-heading flex items-center gap-2 text-[15px] font-semibold">
+          <LogoMark className="size-4" />
           {BRAND.name}
         </Link>
         <div className="flex items-center gap-2">

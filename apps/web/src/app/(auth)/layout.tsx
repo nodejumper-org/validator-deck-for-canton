@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { LogoMark } from "@/components/logo"
 import { BRAND } from "@/lib/brand"
 
 /**
@@ -9,8 +10,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2">
-          <span className="bg-primary size-2 rounded-full" aria-hidden />
+        <div className="mb-6 flex items-center gap-2.5">
+          <LogoMark className="size-5" />
           <span className="font-heading text-[17px] font-semibold tracking-tight">
             {BRAND.fullName}
           </span>
