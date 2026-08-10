@@ -60,6 +60,18 @@ node bundle, and this shape was read out of the wallet UI's minified bundle.
 `topologyStateFilter.participantIds: [participantId]` — without it the node
 returns 100 other participants and omits ours.
 
+**The dashboard is two endpoints, not one.** `/api/dashboard/health` probes every
+node in every network with four calls each and feeds the fleet table;
+`/api/dashboard?network=` does the expensive reads for one network only and feeds
+everything below it. React Query caches the second per network, and both sit under
+the `["dashboard"]` key prefix so existing invalidations reach them. Do not merge
+them back: the table needs every network, the statistics need one, and a combined
+endpoint makes every page load wait on the mainnet participant.
+
+**Nothing on the dashboard fans out per ledger user.** A rights-distribution chart
+once did, at up to 200 requests per node, to draw a bar chart over three
+categories. If a future chart wants per-user data, it needs a different shape.
+
 **`filter-party` is prefix-only.** UI copy must say "starts with". A substring
 search is not possible server-side.
 
