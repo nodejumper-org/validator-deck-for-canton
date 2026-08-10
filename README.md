@@ -48,28 +48,26 @@ build, and start. That runs automatically.
 ## Running everything in Docker
 
 ```bash
-docker compose --profile app up --build
+docker compose up --build
 ```
 
-Builds the image from source and starts it alongside PostgreSQL on port 3000.
-Fill `APP_SECRET` and `BETTER_AUTH_SECRET` in `.env` first — compose passes them
-through.
+Builds the image from source and starts it alongside PostgreSQL on
+`127.0.0.1:3000`. Fill `APP_SECRET` and `BETTER_AUTH_SECRET` in `.env` first —
+compose passes them through.
 
 For day-to-day work you usually want the database in Docker and Next on the host,
 which is what `npm run db:up && npm run dev` gives you.
 
 ## Deployment
 
-Three compose files, one image:
+**One `docker-compose.yml` for everything.** Locally it builds the image; on a
+deploy host, where there is no source tree, the same file pulls
+`ghcr.io/<owner>/validator-deck-web:$IMAGE_TAG` instead. The image reads every
+setting at runtime, so **the same artifact is promoted from dev to prod** rather
+than rebuilt — dev and prod differ only in the values in their host `.env`.
 
-| File | Used for |
-|---|---|
-| `docker-compose.yml` | local — builds from source |
-| `docker-compose.dev.yml` | dev host — pulls the `dev` image, binds to `127.0.0.1`, no Caddy |
-| `docker-compose.prod.yml` | prod host — pulls a release tag, bundles Caddy on 80/443 with automatic TLS |
-
-The image reads every setting at runtime, so **the same artifact is promoted from
-dev to prod** rather than rebuilt. Nothing environment-specific is baked in.
+The stack publishes `web` on `127.0.0.1:${WEB_PORT}` and nothing else. **TLS is
+not its job**: install a reverse proxy on the host and point it there.
 
 ### How a deploy runs
 
@@ -79,8 +77,7 @@ Both call the same reusable workflow, which:
 
 1. runs `npm run check` and `npm test`,
 2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
-3. copies the matching compose file (and `Caddyfile` for prod) to
-   `~/canton-validator-deck/` on the host,
+3. copies `docker-compose.yml` to `~/canton-validator-deck/` on the host,
 4. rewrites only the `IMAGE_TAG` line in the host `.env`, then
    `docker compose pull && up -d --wait`.
 
@@ -94,26 +91,15 @@ with defaults.
 mkdir -p ~/canton-validator-deck && cd ~/canton-validator-deck
 # copy .env.example here as .env, then fill in:
 #   APP_SECRET, BETTER_AUTH_SECRET   openssl rand -hex 32, twice
-#   POSTGRES_PASSWORD                and the matching password inside DATABASE_URL
-#   DATABASE_URL                     postgres://canton:<pw>@db:5432/canton_dashboard
+#   POSTGRES_PASSWORD                compose derives the container's DATABASE_URL from it
 #   BETTER_AUTH_URL                  the public https origin, exactly
-#   VALIDATOR_DECK_DOMAIN            prod only, the hostname Caddy serves
-#   CADDY_ACME_EMAIL                 prod only
+#   WEB_PORT                         what your reverse proxy forwards to
 ```
 
-`env_file` does not interpolate, so the database password has to be written out
-literally in both `POSTGRES_PASSWORD` and `DATABASE_URL`.
-
-Repository settings the workflows expect — as **secrets** on each GitHub
-Environment (`dev`, `prod`): `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, and
-optionally `SSH_PORT`.
-
-### Prod versus dev
-
-Prod publishes 80/443 through Caddy and nothing else; the web and database
-containers are reachable only on the private compose network. Dev publishes the
-web container on `127.0.0.1:3000` on the assumption that the host already runs a
-reverse proxy — set `WEB_PORT` if something else already holds that port.
+Then point the host's reverse proxy at `127.0.0.1:$WEB_PORT` and give it a
+certificate. Repository settings the workflows expect — as **secrets** on each
+GitHub Environment (`dev`, `prod`): `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`,
+and optionally `SSH_PORT`.
 
 ## Accounts
 
@@ -216,8 +202,9 @@ PGlite instance the tests use — so tests exercise the real migrations.
 
 Before putting this on a public network:
 
-- serve it over HTTPS — `docker-compose.prod.yml` does this via Caddy, and the
-  Caddyfile sets HSTS, `nosniff`, `DENY` framing, and a strict referrer policy;
+- serve it over HTTPS — the stack listens on loopback only, so the host's reverse
+  proxy terminates TLS and should set HSTS, `nosniff`, `DENY` framing, and a
+  strict referrer policy;
 - set `BETTER_AUTH_URL` to the real origin, exactly, including the scheme;
 - use distinct `APP_SECRET` and `BETTER_AUTH_SECRET` values;
 - treat the database as secret material — it holds credentials that can

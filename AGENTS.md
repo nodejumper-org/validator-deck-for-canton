@@ -115,18 +115,24 @@ are perfectly fine.
 
 ## Deployment
 
-Three compose files, one runtime-configured image promoted between environments:
-`docker-compose.yml` builds locally, `.dev.yml` pulls `dev` and binds to
-127.0.0.1 behind the host's proxy, `.prod.yml` pulls a release tag and bundles
-Caddy on 80/443.
+One `docker-compose.yml`, one runtime-configured image promoted between
+environments. The `web` service carries both `image:` and `build:` on purpose:
+`up --build` builds that tag locally, and a deploy host — which has no source
+tree — `pull`s the same name. Do not split it back into per-environment files;
+dev and prod differ only in the values in their host `.env`.
 
 Nothing environment-specific is baked into the image — no `NEXT_PUBLIC_*`, no
 build args. If you ever need a build-time value, the promote-the-same-artifact
 property is what you are giving up.
 
+**This repo does not terminate TLS.** The stack publishes only
+`127.0.0.1:${WEB_PORT}`; a reverse proxy installed on the host handles HTTPS and
+is managed outside the repo. Do not add a proxy container back.
+
 The host `~/canton-validator-deck/.env` is operator-managed; CI rewrites only its
-`IMAGE_TAG` line. `env_file` does not interpolate, so the database password must
-appear literally in both `POSTGRES_PASSWORD` and `DATABASE_URL`.
+`IMAGE_TAG` line. The container's `DATABASE_URL` is set in `environment:`, built
+from `POSTGRES_PASSWORD` — that overrides the `env_file` copy, which points at
+the host-side port for `npm run dev`, and keeps the password written once.
 
 `/api/health` is deliberately unauthenticated (compose healthchecks have no
 session) and touches the database, since a web process that cannot reach Postgres
@@ -163,7 +169,7 @@ npm test            # offline
 npm run smoke       # live, read-only, needs SMOKE_* in .env
 npm run check       # tsc across both workspaces
 npm run db:up       # PostgreSQL 18 in Docker
-docker compose --profile app up --build   # whole stack in Docker
+docker compose up --build   # whole stack in Docker
 npm run db:generate # new migration after editing schema.ts
 ```
 

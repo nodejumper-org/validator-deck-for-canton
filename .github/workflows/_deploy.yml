@@ -69,16 +69,14 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
-      - name: Copy compose config to host
+      - name: Copy compose file to host
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          # dev has no Caddy: the host's own reverse proxy fronts the web
-          # container, which docker-compose.dev.yml binds to 127.0.0.1.
-          source: ${{ inputs.environment == 'dev' && 'docker-compose.dev.yml' || 'docker-compose.prod.yml,Caddyfile' }}
+          source: 'docker-compose.yml'
           target: 'canton-validator-deck/'
 
       - name: Pull image and restart
@@ -87,13 +85,12 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
           IMAGE_TAG: ${{ inputs.image-tag }}
-          ENVIRONMENT: ${{ inputs.environment }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          envs: GHCR_TOKEN,GHCR_USER,IMAGE_TAG,ENVIRONMENT
+          envs: GHCR_TOKEN,GHCR_USER,IMAGE_TAG
           script: |
             set -euo pipefail
             cd ~/canton-validator-deck
@@ -106,7 +103,6 @@ jobs:
             fi
 
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            mv -f "docker-compose.${ENVIRONMENT}.yml" docker-compose.yml
 
             if grep -q '^IMAGE_TAG=' .env; then
               sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
@@ -115,8 +111,8 @@ jobs:
             fi
 
             docker compose pull
-            # --remove-orphans clears containers from a previous compose file,
-            # e.g. caddy after a prod-to-dev switch.
+            # Drops containers this file no longer defines, so a host left over
+            # from an older stack converges instead of accumulating.
             docker compose up -d --wait --remove-orphans
             docker logout ghcr.io
             docker image prune -af

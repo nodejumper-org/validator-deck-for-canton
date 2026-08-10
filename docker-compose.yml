@@ -1,16 +1,15 @@
-# Local stack: builds the image from source. Everything runs in Docker.
+# The only compose file: same stack locally and on every deploy host.
 #
-#   cp .env.example .env      # fill APP_SECRET and BETTER_AUTH_SECRET
-#   docker compose up --build
+#   cp .env.example .env        # fill APP_SECRET and BETTER_AUTH_SECRET
+#   docker compose up -d db     # just Postgres, with `npm run dev` on the host
+#   docker compose up --build   # whole stack, image built from source
 #
-# For day-to-day development you usually want Postgres only, with Next running on
-# the host for hot reload:
+# On a deploy host there is no source tree: the workflow copies this file next to
+# an operator-managed .env and runs `docker compose pull && up -d --wait`, so the
+# published image is used and nothing is built.
 #
-#   docker compose up -d db
-#   npm run dev
-#
-# The two deploy stacks are docker-compose.dev.yml and docker-compose.prod.yml;
-# they pull published images instead of building.
+# TLS is not this stack's job. web publishes on 127.0.0.1 only; a reverse proxy
+# installed on the host terminates HTTPS and forwards to it.
 services:
   db:
     image: postgres:18-alpine
@@ -18,10 +17,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: canton
-      POSTGRES_PASSWORD: canton
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: canton_dashboard
     ports:
-      - "${DB_PORT:-5434}:5432"
+      # Loopback only — for psql and backups, never from off-host.
+      - "127.0.0.1:${DB_PORT:-5434}:5432"
     volumes:
       # Postgres 18+ wants a single mount at /var/lib/postgresql, not .../data —
       # it stores data in a major-version subdirectory so pg_upgrade --link works.
@@ -33,7 +33,9 @@ services:
       retries: 10
 
   web:
-    profiles: ["app"]
+    # Both keys on purpose: `up --build` builds this tag locally, `pull` fetches
+    # the same name on a host that has no build context.
+    image: ghcr.io/vbloher/validator-deck-web:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -42,23 +44,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file: .env
     environment:
-      DATABASE_URL: postgres://canton:canton@db:5432/canton_dashboard
-      # Compose interpolates every service even when only `db` is started, so
-      # these cannot be required variables. The app fails loudly if they are empty.
-      APP_SECRET: ${APP_SECRET:-}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      PARTY_SCAN_CRON: ${PARTY_SCAN_CRON:-*/10 * * * *}
+      # Wins over the .env copy above, which points at the host-side port for
+      # `npm run dev`. Deriving it here means the password is written once.
+      DATABASE_URL: postgres://canton:${POSTGRES_PASSWORD}@db:5432/canton_dashboard
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     healthcheck:
       test:
         ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 20s
+      # First boot runs migrations before serving.
+      start_period: 30s
 
 volumes:
   db-data: {}
