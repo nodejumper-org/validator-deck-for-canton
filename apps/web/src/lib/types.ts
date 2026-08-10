@@ -161,3 +161,31 @@ export type DashboardResult = {
     rewardMix: { date: string; app: number; validator: number; sv: number }[]
   }
 }
+
+/** Per-node facts the network-scoped dashboard needs. Amounts stay decimal strings. */
+export type NodeStats = {
+  id: string
+  name: string
+  hasValidator: boolean
+  /** False when this node's ledger reads failed: the zeros below are unknown, not real. */
+  ok: boolean
+  users: number
+  deactivatedUsers: number
+  packages: number
+  unlockedCC: string
+  lockedCC: string
+  holdingFees: string
+  /** ISO date of the newest wallet transaction; null when there are none. */
+  lastActivityAt: string | null
+}
+
+export type AttentionSeverity = "bad" | "warn" | "info"
+
+export type AttentionItem = {
+  key: string
+  severity: AttentionSeverity
+  nodeId: string
+  nodeName: string
+  title: string
+  detail?: string
+}
