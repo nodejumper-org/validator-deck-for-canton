@@ -64,7 +64,10 @@ export function HealthMatrix({
                   onClick={() => router.push(`/nodes/${n.id}`)}
                   className={cn(
                     "hover:bg-muted/40 cursor-pointer",
-                    selectedNetwork && n.network !== selectedNetwork && "opacity-50",
+                    // 70, not 50: two thirds of a three-network operator's table is
+                    // dimmed, and at 50% the node name and the 12px latency cell
+                    // fall below AA. This still reads as secondary.
+                    selectedNetwork && n.network !== selectedNetwork && "opacity-70",
                   )}
                 >
                   <TableCell>

@@ -11,6 +11,13 @@ const TONE: Record<AttentionSeverity, string> = {
   info: "bg-muted-foreground/40",
 }
 
+/** What the dot is read out as. The wire values are internal shorthand. */
+const SEVERITY_LABEL: Record<AttentionSeverity, string> = {
+  bad: "problem",
+  warn: "warning",
+  info: "note",
+}
+
 export function AttentionPanel({
   items,
   isLoading,
@@ -37,7 +44,7 @@ export function AttentionPanel({
               <span
                 className={cn("mt-1.5 size-2 shrink-0 rounded-full", TONE[item.severity])}
                 role="img"
-                aria-label={item.severity === "info" ? "note" : item.severity}
+                aria-label={SEVERITY_LABEL[item.severity]}
               />
               <div className="min-w-0">
                 <p className="text-[13px]">

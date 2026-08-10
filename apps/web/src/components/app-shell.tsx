@@ -75,12 +75,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh">
       <aside className="bg-sidebar sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r md:flex">
-        <div className="flex items-center gap-2 px-3 py-3">
-          <span className="flex min-w-0 items-center gap-2 pl-1">
-            <LogoMark className="size-4" />
-            <span className="font-heading truncate text-[15px] font-semibold tracking-tight">
-              {BRAND.name}
-            </span>
+        <div className="flex min-w-0 items-center gap-2 py-3 pr-3 pl-4">
+          <LogoMark className="size-4" />
+          <span className="font-heading truncate text-[15px] font-semibold tracking-tight">
+            {BRAND.name}
           </span>
         </div>
 
