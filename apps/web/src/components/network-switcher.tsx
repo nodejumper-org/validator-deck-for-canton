@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils"
  *
  * Each segment carries its own health dot, which is what keeps fleet awareness
  * once the statistics below are scoped — an outage on testnet stays visible while
- * you are looking at mainnet. The dot is never the only channel: the segment is
- * labelled and titled with the same fact.
+ * you are looking at mainnet. The dot is never the only channel: a network that is
+ * not fully up spells the count out beside its name.
  */
 export function NetworkSwitcher({
   available,
@@ -45,6 +45,7 @@ export function NetworkSwitcher({
       {networks.map((network) => {
         const rows = (health ?? []).filter((n) => n.network === network)
         const healthy = rows.filter((n) => n.ledgerOk).length
+        const allHealthy = rows.length > 0 && healthy === rows.length
         const isSelected = network === selected
 
         return (
@@ -62,8 +63,17 @@ export function NetworkSwitcher({
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <StatusDot ok={health ? rows.length > 0 && healthy === rows.length : null} />
-            {network}
+            <StatusDot ok={health ? allHealthy : null}>
+              {network}
+              {/* Colour alone would carry this, and `title` does not exist on
+                  touch. Quiet while a network is fully up, explicit once it is
+                  not — which is the case worth interrupting a glance for. */}
+              {health && !allHealthy ? (
+                <span className="tabular ml-1.5">
+                  {healthy}/{rows.length}
+                </span>
+              ) : null}
+            </StatusDot>
           </button>
         )
       })}

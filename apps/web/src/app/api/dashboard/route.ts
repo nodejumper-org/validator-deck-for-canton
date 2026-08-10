@@ -21,8 +21,26 @@ const settled = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
 const sum = (values: string[]): string =>
   values.reduce((total, v) => total + (Number(v) || 0), 0).toFixed(4)
 
-const newest = (txs: WalletTransaction[]): string | null =>
-  txs.reduce<string | null>((max, tx) => (max === null || tx.date > max ? tx.date : max), null)
+/**
+ * The newest transaction date. Compared as instants rather than as strings:
+ * string order only matches time order while every `date` shares one format and
+ * one offset, and the attention rules downstream turn this into a "no activity
+ * for N days" verdict. A date that will not parse is skipped rather than winning
+ * by accident.
+ */
+const newest = (txs: WalletTransaction[]): string | null => {
+  let newestDate: string | null = null
+  let newestTime = -Infinity
+
+  for (const tx of txs) {
+    const time = Date.parse(tx.date)
+    if (Number.isFinite(time) && time > newestTime) {
+      newestTime = time
+      newestDate = tx.date
+    }
+  }
+  return newestDate
+}
 
 type Snapshot = { stats: NodeStats; flow: CcFlowSource; errors: SurfaceError[] }
 
@@ -72,14 +90,29 @@ export const GET = authed(async (req, _ctx, ownerId) => {
           ? ledger.listVettedPackages(participantId)
           : Promise.resolve([] as VettedPackage[]),
         node.validatorApiUrl
-          ? validatorFor(node.id, ownerId).then(async (v) => ({
-              party: await v
-                .getValidatorUser()
-                .then((u) => u.party_id)
-                .catch(() => null),
-              balance: await v.getWalletBalance().catch(() => null),
-              transactions: await v.listWalletTransactions({ pageSize: 800 }).catch(() => []),
-            }))
+          ? validatorFor(node.id, ownerId).then(async (v) => {
+              // Each read still catches, so one broken wallet endpoint cannot take
+              // down the other two — but the reason is kept rather than discarded.
+              // A `sub` carrying ParticipantAdmin without an onboarded wallet fails
+              // all three with "No wallet found", and swallowing that made the node
+              // read as perfectly healthy while holding zero CC.
+              const failures: string[] = []
+              const keep = <T, F>(read: Promise<T>, fallback: F): Promise<T | F> =>
+                read.catch((e) => {
+                  failures.push(message(e))
+                  return fallback
+                })
+
+              return {
+                party: await keep(
+                  v.getValidatorUser().then((u) => u.party_id),
+                  null,
+                ),
+                balance: await keep(v.getWalletBalance(), null),
+                transactions: await keep(v.listWalletTransactions({ pageSize: 800 }), []),
+                failures,
+              }
+            })
           : Promise.resolve(null),
       ])
 
@@ -104,9 +137,19 @@ export const GET = authed(async (req, _ctx, ownerId) => {
           lastActivityAt: newest(val?.transactions ?? []),
         },
         flow: { party: val?.party ?? null, transactions: val?.transactions ?? [] },
-        errors: [users, packages, validator]
-          .filter((r) => r.status === "rejected")
-          .map((r) => ({ surface: node.name, message: message(r.reason) })),
+        // Both kinds of failure land here: a read that rejected outright, and one
+        // the validator branch caught so the other two could still run. Distinct
+        // reasons only — a node with no onboarded wallet fails all three validator
+        // reads with the same "No wallet found", and three identical lines read as
+        // a rendering bug rather than as one fact.
+        errors: [
+          ...new Set([
+            ...[users, packages, validator]
+              .filter((r) => r.status === "rejected")
+              .map((r) => message(r.reason)),
+            ...(val?.failures ?? []),
+          ]),
+        ].map((m) => ({ surface: node.name, message: m })),
       }
     }),
   )

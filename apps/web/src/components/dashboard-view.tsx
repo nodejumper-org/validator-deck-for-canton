@@ -68,8 +68,9 @@ export function DashboardView() {
           error={healthError as { message: string } | null}
         />
 
-        {/* The whole query failed, so there is no `data` and no per-node detail
-            to show — only this. The two alerts cannot co-occur. */}
+        {/* A first-load failure has no `data`, so this alert stands alone. A failed
+            refetch keeps the last good `data`, so both alerts can stack — that is
+            the honest rendering, and neither block gates the other. */}
         {statsError ? (
           <Alert variant="destructive">
             <AlertTitle>Could not load statistics</AlertTitle>
