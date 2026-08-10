@@ -151,6 +151,8 @@ export type NodeStats = {
   hasValidator: boolean
   /** False when this node's ledger reads failed: the zeros below are unknown, not real. */
   ok: boolean
+  /** False when this node's wallet reads failed: `lastActivityAt` is then unknown, not absent. */
+  walletOk: boolean
   users: number
   deactivatedUsers: number
   packages: number

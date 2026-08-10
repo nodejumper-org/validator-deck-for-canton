@@ -154,7 +154,13 @@ export function DashboardView() {
           <RewardMixChart data={data?.charts.rewardMix ?? []} isLoading={isLoading} />
         </div>
 
-        <AttentionPanel items={attention} isLoading={healthLoading} />
+        {/* Gated on every input, not just health. Health lands first by design, so
+            gating on it alone let the panel render "Nothing needs attention" before
+            a single package, user, or wallet figure had arrived — an all-clear it
+            had no basis for, with warnings popping in behind it. Same for `network`:
+            until `useNodes()` resolves there is no selection and `inNetwork` is
+            empty, which reads identically. */}
+        <AttentionPanel items={attention} isLoading={healthLoading || isLoading || !network} />
       </div>
     </>
   )

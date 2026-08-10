@@ -59,9 +59,16 @@ export function attentionItems({
     const s = byId.get(node.id)
     const counted = s?.ok ? s : null
 
+    // The wallet fails on its own: `validatorOk` comes from the health probe's
+    // `getVersion`, which answers happily for a credential that has no onboarded
+    // wallet, while all three wallet reads fail with "No wallet found". Reading
+    // the resulting `lastActivityAt: null` as "no activity" would state as fact
+    // something the statistics route recorded as a failure, so rules 4 and 5 need
+    // `walletOk` exactly as they need `validatorOk`.
+
     if (node.validatorOk === false) {
       add("validator", "bad", "Validator unreachable", "The Splice validator API did not answer.")
-    } else if (counted?.hasValidator) {
+    } else if (counted?.hasValidator && counted.walletOk) {
       if (counted.lastActivityAt === null) {
         add(
           "no-activity",

@@ -68,6 +68,18 @@ the `["dashboard"]` key prefix so existing invalidations reach them. Do not merg
 them back: the table needs every network, the statistics need one, and a combined
 endpoint makes every page load wait on the mainnet participant.
 
+**The attention rules read across both endpoints, and a zero is never a fact on
+its own.** `src/lib/attention.ts` takes reachability from the health payload and
+counts from the statistics one, so every rule that reads a count must first check
+the flag that says the read succeeded — `ok` for the ledger figures, `walletOk`
+for `lastActivityAt`. The two are separate because the failures are: a credential
+with `ParticipantAdmin` but no onboarded wallet answers `getVersion`, so health
+reports the validator up, while all three wallet reads fail with "No wallet
+found". Ungated, that node's `lastActivityAt: null` renders as "No wallet
+activity yet" — the panel stating as fact something the route recorded as a
+failure, directly under the alert that says the read failed. A new rule reading a
+new field needs a new flag with it.
+
 **Nothing on the dashboard fans out per ledger user.** A rights-distribution chart
 once did, at up to 200 requests per node, to draw a bar chart over three
 categories. If a future chart wants per-user data, it needs a different shape.

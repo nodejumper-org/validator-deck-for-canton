@@ -25,6 +25,7 @@ const stats = (over: Partial<NodeStats> = {}): NodeStats => ({
   name: "mainnet-1",
   hasValidator: true,
   ok: true,
+  walletOk: true,
   users: 4,
   deactivatedUsers: 0,
   packages: 42,
@@ -68,6 +69,51 @@ test("an unreachable validator suppresses the wallet activity rule", () => {
     now: NOW,
   })
   expect(titles(items)).toEqual(["Validator unreachable"])
+})
+
+test("an unreachable validator suppresses only the wallet rules, not the ledger ones", () => {
+  const items = attentionItems({
+    health: [health({ validatorOk: false })],
+    stats: [stats({ lastActivityAt: null, deactivatedUsers: 2, packages: 0 })],
+    now: NOW,
+  })
+  expect(titles(items)).toEqual([
+    "Validator unreachable",
+    "2 deactivated ledger users",
+    "No packages vetted",
+  ])
+})
+
+// A credential carrying ParticipantAdmin without an onboarded wallet answers
+// `getVersion` — so health says the validator is up — and fails every wallet read
+// with "No wallet found". The silence is a failed read, not an idle wallet.
+test("a failed wallet read is not reported as an absent wallet history", () => {
+  const items = attentionItems({
+    health: [health()],
+    stats: [stats({ walletOk: false, lastActivityAt: null })],
+    now: NOW,
+  })
+  expect(items).toEqual([])
+})
+
+test("a failed wallet read is not reported as a stale wallet either", () => {
+  const items = attentionItems({
+    health: [health()],
+    stats: [
+      stats({ walletOk: false, lastActivityAt: new Date(NOW - 5 * DAY).toISOString() }),
+    ],
+    now: NOW,
+  })
+  expect(items).toEqual([])
+})
+
+test("a failed wallet read leaves the ledger rules alone", () => {
+  const items = attentionItems({
+    health: [health()],
+    stats: [stats({ walletOk: false, lastActivityAt: null, packages: 0 })],
+    now: NOW,
+  })
+  expect(titles(items)).toEqual(["No packages vetted"])
 })
 
 test("a silent wallet is flagged once it passes the stale threshold", () => {
@@ -148,6 +194,19 @@ test("sorts by severity, then node name", () => {
   })
   expect(items.map((i) => i.severity)).toEqual(["bad", "warn", "info"])
   expect(items.map((i) => i.nodeName)).toEqual(["alpha", "gamma", "beta"])
+})
+
+test("two findings of the same severity are ordered by node name", () => {
+  const items = attentionItems({
+    health: [health({ id: "z", name: "zeta" }), health({ id: "a", name: "alpha" })],
+    stats: [
+      stats({ id: "z", name: "zeta", packages: 0 }),
+      stats({ id: "a", name: "alpha", packages: 0 }),
+    ],
+    now: NOW,
+  })
+  expect(items.map((i) => i.severity)).toEqual(["warn", "warn"])
+  expect(items.map((i) => i.nodeName)).toEqual(["alpha", "zeta"])
 })
 
 test("keys are stable and unique per node and rule", () => {
