@@ -144,24 +144,6 @@ export type NodeHealth = {
   error: string | null
 }
 
-export type DashboardResult = {
-  nodes: NodeHealth[]
-  totals: {
-    nodes: number
-    healthy: number
-    users: number
-    packages: number
-    balanceCC: string
-    synchronizers: number
-  }
-  charts: {
-    walletActivity: { date: string; net: number }[]
-    rightsDistribution: { kind: string; users: number }[]
-    versionSprawl: { name: string; versions: number }[]
-    rewardMix: { date: string; app: number; validator: number; sv: number }[]
-  }
-}
-
 /** Per-node facts the network-scoped dashboard needs. Amounts stay decimal strings. */
 export type NodeStats = {
   id: string
@@ -192,5 +174,20 @@ export type AttentionItem = {
 
 export type CcFlowPoint = { date: string; received: number; sent: number; fees: number }
 export type RewardMixPoint = { date: string; app: number; validator: number; sv: number }
+
+export type NetworkDashboard = {
+  network: Network
+  nodes: NodeStats[]
+  totals: {
+    users: number
+    packages: number
+    unlockedCC: string
+    lockedCC: string
+    holdingFees: string
+  }
+  charts: { ccFlow: CcFlowPoint[]; rewardMix: RewardMixPoint[] }
+  /** Per-node read failures. Totals silently understate without them. */
+  errors: SurfaceError[]
+}
 
 export type FleetHealth = { nodes: NodeHealth[] }

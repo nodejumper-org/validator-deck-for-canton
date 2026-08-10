@@ -1,142 +1,131 @@
-import { isCantonApiError, type LedgerClient } from "@canton/client"
-import type { NodeHealth, UserRight, VettedPackage, WalletTransaction } from "@/lib/types"
-import { netAmountByDay, rewardMix, rightsDistribution, versionSprawl } from "@/server/aggregate"
+import { isCantonApiError } from "@canton/client"
+import type {
+  NetworkDashboard,
+  NodeStats,
+  SurfaceError,
+  VettedPackage,
+  WalletTransaction,
+} from "@/lib/types"
+import { ccFlowByDay, rewardMix, type CcFlowSource } from "@/server/aggregate"
 import { ledgerFor, validatorFor } from "@/server/client"
 import { listNodes } from "@/server/nodes"
 import { authed } from "@/server/route-helpers"
+import { networkParamSchema } from "@/server/validation"
 
 const message = (e: unknown) => (isCantonApiError(e) ? e.message : String(e))
-
-/** Rights are fetched per user; cap the fan-out so one busy node cannot stall the page. */
-const MAX_USERS_FOR_RIGHTS = 200
 
 const settled = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
   r.status === "fulfilled" ? r.value : fallback
 
-type NodeSnapshot = {
-  health: NodeHealth
-  userIds: string[]
-  ledger: LedgerClient | null
-  packages: VettedPackage[]
-  transactions: WalletTransaction[]
-  balanceCC: number
-  synchronizers: number
-}
+/** Amounts stay strings on the wire; this is the one place they are added up. */
+const sum = (values: string[]): string =>
+  values.reduce((total, v) => total + (Number(v) || 0), 0).toFixed(4)
 
-export const GET = authed(async (_req, _ctx, ownerId) => {
-  const nodes = await listNodes(ownerId)
+const newest = (txs: WalletTransaction[]): string | null =>
+  txs.reduce<string | null>((max, tx) => (max === null || tx.date > max ? tx.date : max), null)
 
-  // Nothing here blocks on the local-party scan: the dashboard only calls the
-  // endpoints that answer in well under a second.
+type Snapshot = { stats: NodeStats; flow: CcFlowSource; errors: SurfaceError[] }
+
+/**
+ * Statistics for one network. Health lives at `/api/dashboard/health` and covers
+ * every network, because the node table is the fleet view.
+ *
+ * There is deliberately no per-user rights fan-out here. The chart that needed it
+ * was a bar chart over three categories, and it cost up to 200 requests per node.
+ */
+export const GET = authed(async (req, _ctx, ownerId) => {
+  const network = networkParamSchema.parse(new URL(req.url).searchParams.get("network"))
+  const nodes = (await listNodes(ownerId)).filter((n) => n.network === network)
+
   const snapshots = await Promise.all(
-    nodes.map(async (node): Promise<NodeSnapshot> => {
-      const started = performance.now()
-
-      const base: NodeHealth = {
+    nodes.map(async (node): Promise<Snapshot> => {
+      const base: NodeStats = {
         id: node.id,
         name: node.name,
-        network: node.network,
-        ledgerOk: false,
-        validatorOk: node.validatorApiUrl ? false : null,
-        synchronizerConnected: false,
-        ledgerEnd: null,
-        ledgerVersion: null,
-        validatorVersion: null,
-        latencyMs: 0,
-        error: null,
+        hasValidator: Boolean(node.validatorApiUrl),
+        ok: false,
+        users: 0,
+        deactivatedUsers: 0,
+        packages: 0,
+        unlockedCC: "0",
+        lockedCC: "0",
+        holdingFees: "0",
+        lastActivityAt: null,
       }
 
-      let ledger: LedgerClient | null = null
+      let ledger
       try {
         ledger = await ledgerFor(node.id, ownerId)
       } catch (e) {
         return {
-          health: { ...base, error: message(e), latencyMs: Math.round(performance.now() - started) },
-          userIds: [],
-          ledger: null,
-          packages: [],
-          transactions: [],
-          balanceCC: 0,
-          synchronizers: 0,
+          stats: base,
+          flow: { party: null, transactions: [] },
+          errors: [{ surface: node.name, message: message(e) }],
         }
       }
 
       const participantId = await ledger.getParticipantId().catch(() => null)
 
-      const [version, end, syncs, users, packages, validator] = await Promise.allSettled([
-        ledger.getVersion(),
-        ledger.getLedgerEnd(),
-        ledger.getConnectedSynchronizers(),
+      const [users, packages, validator] = await Promise.allSettled([
         ledger.listUsers({ pageSize: 1000 }),
-        participantId ? ledger.listVettedPackages(participantId) : Promise.resolve([]),
+        participantId
+          ? ledger.listVettedPackages(participantId)
+          : Promise.resolve([] as VettedPackage[]),
         node.validatorApiUrl
           ? validatorFor(node.id, ownerId).then(async (v) => ({
-              version: (await v.getVersion()).version,
+              party: await v
+                .getValidatorUser()
+                .then((u) => u.party_id)
+                .catch(() => null),
               balance: await v.getWalletBalance().catch(() => null),
               transactions: await v.listWalletTransactions({ pageSize: 800 }).catch(() => []),
             }))
           : Promise.resolve(null),
       ])
 
-      const synchronizers = settled(syncs, []).length
-      const validatorData = settled(validator, null)
-      const firstFailure = [version, end, syncs, users].find((r) => r.status === "rejected")
+      const userList = settled(users, { users: [], nextPageToken: "" }).users
+      const pkgs = settled(packages, [] as VettedPackage[])
+      const val = settled(validator, null)
 
       return {
-        health: {
+        stats: {
           ...base,
-          ledgerOk: version.status === "fulfilled",
-          validatorOk: node.validatorApiUrl ? validatorData !== null : null,
-          synchronizerConnected: synchronizers > 0,
-          ledgerEnd: settled(end, null),
-          ledgerVersion: settled(version, null)?.version ?? null,
-          validatorVersion: validatorData?.version ?? null,
-          latencyMs: Math.round(performance.now() - started),
-          error: firstFailure ? message(firstFailure.reason) : null,
+          // Zeros from a failed read must not read as real counts downstream.
+          ok:
+            users.status === "fulfilled" &&
+            packages.status === "fulfilled" &&
+            participantId !== null,
+          users: userList.length,
+          deactivatedUsers: userList.filter((u) => u.isDeactivated).length,
+          packages: pkgs.length,
+          unlockedCC: val?.balance?.effective_unlocked_qty ?? "0",
+          lockedCC: val?.balance?.effective_locked_qty ?? "0",
+          holdingFees: val?.balance?.total_holding_fees ?? "0",
+          lastActivityAt: newest(val?.transactions ?? []),
         },
-        userIds: settled(users, { users: [], nextPageToken: "" }).users.map((u) => u.id),
-        ledger,
-        packages: settled(packages, []),
-        transactions: validatorData?.transactions ?? [],
-        balanceCC: Number(validatorData?.balance?.effective_unlocked_qty ?? "0"),
-        synchronizers,
+        flow: { party: val?.party ?? null, transactions: val?.transactions ?? [] },
+        errors: [users, packages, validator]
+          .filter((r) => r.status === "rejected")
+          .map((r) => ({ surface: node.name, message: message(r.reason) })),
       }
     }),
   )
 
-  // Rights need one request per user, so they are gathered after the per-node
-  // fan-out rather than inside it.
-  const rightsPerUser: UserRight[][] = (
-    await Promise.all(
-      snapshots.flatMap((s) =>
-        s.ledger
-          ? s.userIds
-              .slice(0, MAX_USERS_FOR_RIGHTS)
-              .map((userId) => s.ledger!.listUserRights(userId).catch((): UserRight[] => []))
-          : [],
-      ),
-    )
-  ).filter((rights) => rights.length > 0)
-
-  const allTransactions = snapshots.flatMap((s) => s.transactions)
-  const allPackages = snapshots.flatMap((s) => s.packages)
-  const totalBalance = snapshots.reduce((sum, s) => sum + s.balanceCC, 0)
-
-  return {
-    nodes: snapshots.map((s) => s.health),
+  const result: NetworkDashboard = {
+    network,
+    nodes: snapshots.map((s) => s.stats),
     totals: {
-      nodes: nodes.length,
-      healthy: snapshots.filter((s) => s.health.ledgerOk).length,
-      users: snapshots.reduce((sum, s) => sum + s.userIds.length, 0),
-      packages: allPackages.length,
-      balanceCC: totalBalance.toFixed(4),
-      synchronizers: snapshots.reduce((sum, s) => sum + s.synchronizers, 0),
+      users: snapshots.reduce((t, s) => t + s.stats.users, 0),
+      packages: snapshots.reduce((t, s) => t + s.stats.packages, 0),
+      unlockedCC: sum(snapshots.map((s) => s.stats.unlockedCC)),
+      lockedCC: sum(snapshots.map((s) => s.stats.lockedCC)),
+      holdingFees: sum(snapshots.map((s) => s.stats.holdingFees)),
     },
     charts: {
-      walletActivity: netAmountByDay(allTransactions),
-      rightsDistribution: rightsDistribution(rightsPerUser),
-      versionSprawl: versionSprawl(allPackages),
-      rewardMix: rewardMix(allTransactions),
+      ccFlow: ccFlowByDay(snapshots.map((s) => s.flow)),
+      rewardMix: rewardMix(snapshots.flatMap((s) => s.flow.transactions)),
     },
+    errors: snapshots.flatMap((s) => s.errors),
   }
+  return result
 })

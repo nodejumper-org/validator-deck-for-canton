@@ -48,3 +48,18 @@ export function compactCC(value: number): string {
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`
   return value.toFixed(0)
 }
+
+/**
+ * Series that actually have a value somewhere in the range.
+ *
+ * A plain collecting validator never sends CC and never earns app or SV rewards,
+ * so without this both charts render a three-item legend that is permanently
+ * two-thirds empty. Dropping the dead series is what lets them degrade to one
+ * clean bar instead.
+ */
+export function activeSeries<T, S extends { key: keyof T & string }>(
+  series: readonly S[],
+  data: T[],
+): S[] {
+  return series.filter((s) => data.some((d) => Number(d[s.key]) > 0))
+}

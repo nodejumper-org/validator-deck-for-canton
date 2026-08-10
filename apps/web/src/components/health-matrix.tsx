@@ -6,14 +6,19 @@ import { NetworkBadge } from "@/components/network-badge"
 import { StatusDot } from "@/components/status-dot"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatCount, formatDuration } from "@/lib/format"
-import type { NodeHealth } from "@/lib/types"
+import type { Network, NodeHealth } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 export function HealthMatrix({
   nodes,
+  selectedNetwork,
   isLoading,
   error,
 }: {
   nodes: NodeHealth[]
+  /** Rows outside the selected network stay visible, but dimmed: the table is
+      the fleet view, while everything below it is scoped to one network. */
+  selectedNetwork?: Network | null
   isLoading?: boolean
   error?: { message: string } | null
 }) {
@@ -22,7 +27,7 @@ export function HealthMatrix({
   return (
     <DataPanel
       title="Node health"
-      description="Reachability of each registered node, checked when this page loaded."
+      description="Every registered node, in every network. Checked when this page loaded."
       isLoading={isLoading}
       error={error}
       flush
@@ -48,7 +53,10 @@ export function HealthMatrix({
                 <TableRow
                   key={n.id}
                   onClick={() => router.push(`/nodes/${n.id}`)}
-                  className="hover:bg-muted/40 cursor-pointer"
+                  className={cn(
+                    "hover:bg-muted/40 cursor-pointer",
+                    selectedNetwork && n.network !== selectedNetwork && "opacity-50",
+                  )}
                 >
                   <TableCell>
                     <span className="font-medium">{n.name}</span>

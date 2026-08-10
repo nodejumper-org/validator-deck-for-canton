@@ -1,4 +1,4 @@
-import type { CcFlowPoint, UserRight, VettedPackage, WalletTransaction } from "@/lib/types"
+import type { CcFlowPoint, WalletTransaction } from "@/lib/types"
 
 /**
  * Pure shaping functions for the dashboard charts. No network, no dates from the
@@ -22,18 +22,6 @@ function num(value: string | undefined): number {
 
 function sortedByDate<T extends { date: string }>(rows: T[]): T[] {
   return rows.sort((a, b) => a.date.localeCompare(b.date))
-}
-
-export function netAmountByDay(txs: WalletTransaction[]): { date: string; net: number }[] {
-  const totals = new Map<string, number>()
-  for (const tx of txs) {
-    if (!tx.sender) continue
-    const key = day(tx.date)
-    totals.set(key, (totals.get(key) ?? 0) + num(tx.sender.amount))
-  }
-  return sortedByDate(
-    [...totals.entries()].map(([date, net]) => ({ date, net: Number(net.toFixed(4)) })),
-  )
 }
 
 export function rewardMix(
@@ -61,40 +49,6 @@ export function rewardMix(
       // A day where nothing was claimed would render as an empty column.
       .filter((r) => r.app > 0 || r.validator > 0 || r.sv > 0),
   )
-}
-
-/**
- * How many *users* hold each kind of right. A user with three CanActAs rights
- * counts once, because the question is "how many people can act", not "how many
- * grants exist".
- */
-export function rightsDistribution(rightsPerUser: UserRight[][]): { kind: string; users: number }[] {
-  const counts = new Map<string, number>()
-  for (const rights of rightsPerUser) {
-    for (const kind of new Set(rights.map((r) => r.kind))) {
-      counts.set(kind, (counts.get(kind) ?? 0) + 1)
-    }
-  }
-  return [...counts.entries()]
-    .map(([kind, users]) => ({ kind, users }))
-    .sort((a, b) => b.users - a.users || a.kind.localeCompare(b.kind))
-}
-
-/** Packages ranked by how many distinct versions are vetted — the upgrade debt. */
-export function versionSprawl(
-  pkgs: Pick<VettedPackage, "packageName" | "packageVersion">[],
-  limit = 10,
-): { name: string; versions: number }[] {
-  const byName = new Map<string, Set<string>>()
-  for (const p of pkgs) {
-    const versions = byName.get(p.packageName) ?? new Set<string>()
-    versions.add(p.packageVersion)
-    byName.set(p.packageName, versions)
-  }
-  return [...byName.entries()]
-    .map(([name, versions]) => ({ name, versions: versions.size }))
-    .sort((a, b) => b.versions - a.versions || a.name.localeCompare(b.name))
-    .slice(0, limit)
 }
 
 /**

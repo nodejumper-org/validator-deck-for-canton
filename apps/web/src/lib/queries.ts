@@ -5,11 +5,11 @@ import { toast } from "sonner"
 import { api, ApiError } from "./api"
 import type {
   DarUploadResult,
-  DashboardResult,
   FleetHealth,
   LedgerUser,
   LocalScanState,
   Network,
+  NetworkDashboard,
   NodeOverview,
   NodeSummary,
   PackagesResult,
@@ -310,10 +310,13 @@ export function useValidator(nodeId: string) {
 
 // ------------------------------------------------------------------ dashboard
 
-export function useDashboard() {
+/** Statistics for one network. Each network caches under its own key, so the
+    second visit to a network is instant with a background refetch. */
+export function useDashboard(network: Network | null) {
   return useQuery({
-    queryKey: queryKeys.dashboard(),
-    queryFn: () => api<DashboardResult>("/api/dashboard"),
+    queryKey: queryKeys.dashboardNetwork(network as Network),
+    queryFn: () => api<NetworkDashboard>(`/api/dashboard?network=${network}`),
+    enabled: Boolean(network),
   })
 }
 
