@@ -75,16 +75,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh">
       <aside className="bg-sidebar sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r md:flex">
-        <div className="flex items-center justify-between gap-2 px-3 py-3">
+        <div className="flex items-center gap-2 px-3 py-3">
           <span className="flex min-w-0 items-center gap-2 pl-1">
             <LogoMark className="size-4" />
             <span className="font-heading truncate text-[15px] font-semibold tracking-tight">
               {BRAND.name}
             </span>
           </span>
-          {/* Top of the rail, not the bottom: the bottom-left corner is where
-              Next's dev indicator sits and it would cover the control. */}
-          <ThemeToggle />
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
@@ -120,8 +117,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : null}
         </nav>
 
-        <div className="border-t p-2">
-          <UserMenu />
+        {/* Next's dev indicator sits at the bottom *left*; the toggle lands at the
+            right edge of a 224px rail, so the two do not overlap. */}
+        <div className="flex items-center gap-1 border-t p-2">
+          <div className="min-w-0 flex-1">
+            <UserMenu />
+          </div>
+          <ThemeToggle />
         </div>
       </aside>
 
