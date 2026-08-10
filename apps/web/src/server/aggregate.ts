@@ -1,4 +1,4 @@
-import type { UserRight, VettedPackage, WalletTransaction } from "@/lib/types"
+import type { CcFlowPoint, UserRight, VettedPackage, WalletTransaction } from "@/lib/types"
 
 /**
  * Pure shaping functions for the dashboard charts. No network, no dates from the
@@ -95,4 +95,54 @@ export function versionSprawl(
     .map(([name, versions]) => ({ name, versions: versions.size }))
     .sort((a, b) => b.versions - a.versions || a.name.localeCompare(b.name))
     .slice(0, limit)
+}
+
+/**
+ * One validator's wallet history plus the party that owns it. The party is what
+ * makes direction decidable; it is null when `getValidatorUser` failed.
+ */
+export type CcFlowSource = { party: string | null; transactions: WalletTransaction[] }
+
+/**
+ * Money in, money out, and the cost of holding it, per day, across every
+ * validator in view.
+ *
+ * The predecessor summed `sender.amount` and called the result "received", which
+ * was backwards. Knowing our own party is what fixes it. Amounts come back as
+ * positive magnitudes — the chart decides which side of the axis they sit on.
+ */
+export function ccFlowByDay(sources: CcFlowSource[]): CcFlowPoint[] {
+  const totals = new Map<string, { received: number; sent: number; fees: number }>()
+
+  for (const { party, transactions } of sources) {
+    for (const tx of transactions) {
+      const key = day(tx.date)
+      const row = totals.get(key) ?? { received: 0, sent: 0, fees: 0 }
+
+      // Every transaction here came out of our own wallet's history, so the
+      // holding fee is ours whether or not the party resolved.
+      row.fees += Math.abs(num(tx.holding_fees))
+
+      if (party) {
+        for (const r of tx.receivers) {
+          if (r.party === party) row.received += Math.abs(num(r.amount))
+        }
+        if (tx.sender?.party === party) row.sent += Math.abs(num(tx.sender.amount))
+      }
+
+      totals.set(key, row)
+    }
+  }
+
+  return sortedByDate(
+    [...totals.entries()]
+      .map(([date, r]) => ({
+        date,
+        received: Number(r.received.toFixed(4)),
+        sent: Number(r.sent.toFixed(4)),
+        fees: Number(r.fees.toFixed(4)),
+      }))
+      // A day where nothing moved would render as an empty column.
+      .filter((r) => r.received > 0 || r.sent > 0 || r.fees > 0),
+  )
 }

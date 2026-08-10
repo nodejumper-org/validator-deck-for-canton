@@ -189,3 +189,6 @@ export type AttentionItem = {
   title: string
   detail?: string
 }
+
+export type CcFlowPoint = { date: string; received: number; sent: number; fees: number }
+export type RewardMixPoint = { date: string; app: number; validator: number; sv: number }
