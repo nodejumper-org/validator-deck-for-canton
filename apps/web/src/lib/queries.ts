@@ -6,8 +6,10 @@ import { api, ApiError } from "./api"
 import type {
   DarUploadResult,
   DashboardResult,
+  FleetHealth,
   LedgerUser,
   LocalScanState,
+  Network,
   NodeOverview,
   NodeSummary,
   PackagesResult,
@@ -30,6 +32,10 @@ export const queryKeys = {
   packages: (id: string) => ["nodes", id, "packages"] as const,
   validator: (id: string) => ["nodes", id, "validator"] as const,
   dashboard: () => ["dashboard"] as const,
+  /** Both dashboard queries sit under the `dashboard` prefix, so the
+      invalidateQueries calls already spread through this file reach them. */
+  dashboardHealth: () => ["dashboard", "health"] as const,
+  dashboardNetwork: (network: Network) => ["dashboard", "network", network] as const,
 }
 
 export function useNodes() {
@@ -308,5 +314,13 @@ export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard(),
     queryFn: () => api<DashboardResult>("/api/dashboard"),
+  })
+}
+
+/** Every node, every network — the fleet table. Light probes, so it lands first. */
+export function useFleetHealth() {
+  return useQuery({
+    queryKey: queryKeys.dashboardHealth(),
+    queryFn: () => api<FleetHealth>("/api/dashboard/health").then((r) => r.nodes),
   })
 }

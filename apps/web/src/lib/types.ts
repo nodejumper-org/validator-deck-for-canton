@@ -192,3 +192,5 @@ export type AttentionItem = {
 
 export type CcFlowPoint = { date: string; received: number; sent: number; fees: number }
 export type RewardMixPoint = { date: string; app: number; validator: number; sv: number }
+
+export type FleetHealth = { nodes: NodeHealth[] }
