@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/app-shell"
+import { AttentionPanel } from "@/components/attention-panel"
 import { CcFlowChart } from "@/components/charts/cc-flow-chart"
 import { RewardMixChart } from "@/components/charts/reward-mix-chart"
 import { DataPanel, EmptyState } from "@/components/data-panel"
@@ -11,6 +12,7 @@ import { NetworkSwitcher } from "@/components/network-switcher"
 import { StatTile } from "@/components/stat-tile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { attentionItems } from "@/lib/attention"
 import { formatAmountShort, formatCount } from "@/lib/format"
 import { pickNetwork } from "@/lib/networks"
 import { useDashboard, useFleetHealth, useNodes } from "@/lib/queries"
@@ -22,7 +24,7 @@ export function DashboardView() {
 
   const available = [...new Set((nodes ?? []).map((n) => n.network))]
   const network = pickNetwork(searchParams.get("network"), available)
-  const { data, isLoading, error } = useDashboard(network)
+  const { data, isLoading, error, dataUpdatedAt } = useDashboard(network)
 
   const statsError = error as { message: string } | null
   const dash = "—"
@@ -51,6 +53,16 @@ export function DashboardView() {
 
   const inNetwork = (health ?? []).filter((n) => n.network === network)
   const healthy = inNetwork.filter((n) => n.ledgerOk).length
+
+  const attention = attentionItems({
+    health: inNetwork,
+    stats: data?.nodes ?? [],
+    // The fetch time of the same query `stats` came from, not the render clock:
+    // `lastActivityAt` is read from that query too, so this asks "was this
+    // validator silent as of the last read?" rather than drifting with every
+    // unrelated re-render. Also keeps the component pure.
+    now: dataUpdatedAt,
+  })
 
   return (
     <>
@@ -141,6 +153,8 @@ export function DashboardView() {
           <CcFlowChart data={data?.charts.ccFlow ?? []} isLoading={isLoading} />
           <RewardMixChart data={data?.charts.rewardMix ?? []} isLoading={isLoading} />
         </div>
+
+        <AttentionPanel items={attention} isLoading={healthLoading} />
       </div>
     </>
   )

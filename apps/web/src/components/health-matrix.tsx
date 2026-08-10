@@ -6,6 +6,7 @@ import { NetworkBadge } from "@/components/network-badge"
 import { StatusDot } from "@/components/status-dot"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatCount, formatDuration } from "@/lib/format"
+import { NETWORK_ORDER } from "@/lib/networks"
 import type { Network, NodeHealth } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +25,14 @@ export function HealthMatrix({
 }) {
   const router = useRouter()
 
+  // Canonical network order, so the dimmed rows group into blocks instead of
+  // scattering through the table.
+  const rows = [...nodes].sort(
+    (a, b) =>
+      NETWORK_ORDER.indexOf(a.network) - NETWORK_ORDER.indexOf(b.network) ||
+      a.name.localeCompare(b.name),
+  )
+
   return (
     <DataPanel
       title="Node health"
@@ -32,7 +41,7 @@ export function HealthMatrix({
       error={error}
       flush
     >
-      {nodes.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState title="No nodes registered" />
       ) : (
         <div className="overflow-x-auto">
@@ -49,7 +58,7 @@ export function HealthMatrix({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {nodes.map((n) => (
+              {rows.map((n) => (
                 <TableRow
                   key={n.id}
                   onClick={() => router.push(`/nodes/${n.id}`)}
