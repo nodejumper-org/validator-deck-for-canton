@@ -1,10 +1,8 @@
 name: Deploy to dev
 
 on:
-  push:
-    branches: [dev]
-  # Redeploying the same commit is occasionally what you want (host .env change,
-  # rolled-back container), so allow it by hand too.
+  # Manual only, on purpose: a push to dev builds and tests in CI but never
+  # touches the host. Run this from the Actions tab, picking the ref to deploy.
   workflow_dispatch:
 
 permissions:

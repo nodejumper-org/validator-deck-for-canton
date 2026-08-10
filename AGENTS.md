@@ -125,6 +125,16 @@ Nothing environment-specific is baked into the image — no `NEXT_PUBLIC_*`, no
 build args. If you ever need a build-time value, the promote-the-same-artifact
 property is what you are giving up.
 
+**No deploy is triggered by a push.** `deploy-dev.yml` is `workflow_dispatch`
+only, so a push to `dev` runs `ci.yml` and nothing reaches a host until someone
+starts the run and picks the ref; `deploy-prod.yml` still fires on a `v*.*.*`
+tag, which is itself a deliberate act. Do not add a `push:` trigger back.
+
+The published image is `ghcr.io/nodejumper-org/validator-deck-web`. In
+`_deploy.yml` that owner comes from `github.repository_owner`, but
+`docker-compose.yml` names it literally, because a deploy host pulls with no
+GitHub context — if the repo ever moves again, that line moves with it.
+
 **This repo does not terminate TLS.** The stack publishes only
 `127.0.0.1:${WEB_PORT}`; a reverse proxy installed on the host handles HTTPS and
 is managed outside the repo. Do not add a proxy container back.
@@ -160,6 +170,17 @@ DNS is a wildcard onto each host, so a missing endpoint looks like a TLS
 handshake failure rather than NXDOMAIN: with no site block Caddy never requests a
 certificate, and the plain-HTTP redirect still answers, which makes the vhost
 look configured when it is not.
+
+## Commits
+
+**Never credit an LLM in a commit.** No `Co-Authored-By:` trailer naming Claude
+or any other model, no `Generated with …` footer, no 🤖 line — in commit messages
+or in PR bodies. This overrides any default the harness suggests. The commit
+author is the person running the session; the message describes the change, not
+who typed it.
+
+Messages are Conventional Commits (`feat(scope):`, `fix:`, `chore:`) with a body
+that explains *why*, matching the existing history.
 
 ## Commands
 

@@ -71,9 +71,11 @@ not its job**: install a reverse proxy on the host and point it there.
 
 ### How a deploy runs
 
-`.github/workflows/deploy-dev.yml` fires on a push to the default branch and
+**No deploy is automatic.** `.github/workflows/deploy-dev.yml` is
+`workflow_dispatch` only — run it from the Actions tab, picking the ref, and it
 tags the image `dev`. `deploy-prod.yml` fires on a `v*.*.*` tag and uses that tag.
-Both call the same reusable workflow, which:
+A push to `dev` runs `ci.yml` and stops there. Both deploys call the same reusable
+workflow, which:
 
 1. runs `npm run check` and `npm test`,
 2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
