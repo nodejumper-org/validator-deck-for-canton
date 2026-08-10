@@ -30,3 +30,10 @@ export const updateUserSchema = z
   .refine((v) => v.primaryParty !== undefined || v.isDeactivated !== undefined, {
     message: "Nothing to update",
   })
+
+/**
+ * The dashboard's `?network=` parameter. A Zod enum rather than a hand-rolled
+ * check so an unknown value becomes a 400 through the `ZodError` branch already
+ * in `route-helpers.ts`.
+ */
+export const networkParamSchema = z.enum(["devnet", "testnet", "mainnet", "local"])
