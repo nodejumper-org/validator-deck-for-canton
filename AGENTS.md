@@ -156,7 +156,7 @@ publishes the versioned image and cuts the GitHub release but touches no host â€
 promoting a version to an environment is a separate, manual act. Do not add a
 `push:` trigger back, and do not make `release.yml` deploy.
 
-The published image is `ghcr.io/nodejumper-org/validator-deck-web`. In
+The published image is `ghcr.io/nodejumper-org/validator-deck`. In
 `_deploy.yml` that owner comes from `github.repository_owner`, but
 `docker-compose.yml` names it literally, because a deploy host pulls with no
 GitHub context â€” if the repo ever moves again, that line moves with it.
