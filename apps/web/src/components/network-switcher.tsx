@@ -40,7 +40,7 @@ export function NetworkSwitcher({
     <div
       role="group"
       aria-label="Network"
-      className="bg-muted flex items-center gap-0.5 rounded-md p-0.5"
+      className="bg-muted flex items-center gap-1 rounded-lg border p-1"
     >
       {networks.map((network) => {
         const rows = (health ?? []).filter((n) => n.network === network)
@@ -56,10 +56,10 @@ export function NetworkSwitcher({
             aria-pressed={isSelected}
             title={health ? `${network} — ${healthy} of ${rows.length} healthy` : network}
             className={cn(
-              "flex items-center gap-2 rounded-[5px] px-2.5 py-1 text-[12px] font-medium tracking-[0.06em] uppercase transition-colors",
+              "flex items-center gap-2 rounded-md px-3 py-1.5 text-[12px] font-medium tracking-[0.06em] uppercase transition-colors",
               "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
               isSelected
-                ? "bg-accent text-accent-foreground"
+                ? "bg-accent text-accent-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

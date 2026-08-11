@@ -75,7 +75,6 @@ export function DashboardView() {
       <PageHeader
         title="Dashboard"
         description="Fleet health, and everything else for one network at a time."
-        actions={<NetworkSwitcher available={available} selected={network} health={health} />}
       />
 
       <div className="space-y-5 p-5">
@@ -85,6 +84,15 @@ export function DashboardView() {
           isLoading={healthLoading}
           error={healthError as { message: string } | null}
         />
+
+        {/* The hinge of the page: the fleet table above ignores this control,
+            everything below follows it. Sitting between the two, styled as a
+            section rule, it reads as "from here on: this network". */}
+        <div className="flex items-center gap-3 pt-1">
+          <span className="eyebrow shrink-0">Network</span>
+          <NetworkSwitcher available={available} selected={network} health={health} />
+          <div className="bg-border h-px min-w-6 flex-1" aria-hidden />
+        </div>
 
         {/* A first-load failure has no `data`, so this alert stands alone. A failed
             refetch keeps the last good `data`, so both alerts can stack — that is
