@@ -20,3 +20,4 @@ data/
 docs/
 dist/
 *.tsbuildinfo
+.playwright-mcp/
