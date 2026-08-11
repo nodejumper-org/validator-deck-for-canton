@@ -151,8 +151,10 @@ property is what you are giving up.
 
 **No deploy is triggered by a push.** `deploy-dev.yml` is `workflow_dispatch`
 only, so a push to `dev` runs `ci.yml` and nothing reaches a host until someone
-starts the run and picks the ref; `deploy-prod.yml` still fires on a `v*.*.*`
-tag, which is itself a deliberate act. Do not add a `push:` trigger back.
+starts the run and picks the ref. A `v*.*.*` tag runs `release.yml`, which
+publishes the versioned image and cuts the GitHub release but touches no host —
+promoting a version to an environment is a separate, manual act. Do not add a
+`push:` trigger back, and do not make `release.yml` deploy.
 
 The published image is `ghcr.io/nodejumper-org/validator-deck-web`. In
 `_deploy.yml` that owner comes from `github.repository_owner`, but

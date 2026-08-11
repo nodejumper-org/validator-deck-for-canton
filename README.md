@@ -73,15 +73,20 @@ not its job**: install a reverse proxy on the host and point it there.
 
 **No deploy is automatic.** `.github/workflows/deploy-dev.yml` is
 `workflow_dispatch` only — run it from the Actions tab, picking the ref, and it
-tags the image `dev`. `deploy-prod.yml` fires on a `v*.*.*` tag and uses that tag.
-A push to `dev` runs `ci.yml` and stops there. Both deploys call the same reusable
-workflow, which:
+tags the image `dev`. A push to `dev` runs `ci.yml` and stops there. The deploy
+calls a reusable workflow, which:
 
 1. runs `npm run check` and `npm test`,
 2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
 3. copies `docker-compose.yml` to `~/canton-validator-deck/` on the host,
 4. rewrites only the `IMAGE_TAG` line in the host `.env`, then
    `docker compose pull && up -d --wait`.
+
+**Releases are cut by tag.** Pushing a `v*.*.*` tag runs
+`.github/workflows/release.yml`: it tests, publishes
+`ghcr.io/<owner>/validator-deck-web:<version>`, and creates the GitHub release —
+but touches no host. To run a released version somewhere, set that version as
+`IMAGE_TAG` in the host `.env` and `docker compose pull && up -d`.
 
 The host `.env` is operator-managed and survives deploys. Create it once from
 `.env.example`; the workflow fails loudly if it is missing rather than starting
