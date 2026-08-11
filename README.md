@@ -222,3 +222,10 @@ the network edge or add an invite check in `apps/web/src/server/auth.ts`.
 
 The container runs as the unprivileged `node` user and the image carries no
 `.env` — runtime configuration comes from compose only.
+
+## Trademarks
+
+Canton and Canton Network are trademarks of Digital Asset (Switzerland) GmbH.
+This project is independent and is not affiliated with, sponsored by, or
+endorsed by Digital Asset. The name is used only to identify the network this
+tool operates against.
