@@ -1,7 +1,7 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { activeSeries, ChartFrame, compactCC, shortDay } from "@/components/charts/chart-frame"
+import { ChartFrame, compactCC, shortDay } from "@/components/charts/chart-frame"
 import {
   ChartContainer,
   ChartLegend,
@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { activeSeries } from "@/lib/chart-series"
 import { formatAmount } from "@/lib/format"
 import type { RewardMixPoint } from "@/lib/types"
 
@@ -27,8 +28,9 @@ export function RewardMixChart({
   isLoading?: boolean
 }) {
   // Most validators only ever claim one of the three, so a fixed three-item
-  // legend would be permanently two-thirds empty. Identity is still never colour
-  // alone: with one series left the panel title names it.
+  // legend would be permanently two-thirds empty. The legend itself always
+  // renders: it is the only thing on screen that says which of the three the
+  // remaining bars are — the panel title does not.
   const active = activeSeries(SERIES, data)
   const config = Object.fromEntries(active.map((s) => [s.key, { label: s.label, color: s.color }]))
   const last = active.at(-1)?.key
@@ -70,7 +72,7 @@ export function RewardMixChart({
               />
             }
           />
-          {active.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
+          <ChartLegend content={<ChartLegendContent />} />
           {active.map((s) => (
             <Bar
               key={s.key}

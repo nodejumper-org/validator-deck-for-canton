@@ -1,7 +1,7 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts"
-import { activeSeries, ChartFrame, compactCC, shortDay } from "@/components/charts/chart-frame"
+import { ChartFrame, compactCC, shortDay } from "@/components/charts/chart-frame"
 import {
   ChartContainer,
   ChartLegend,
@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { activeSeries } from "@/lib/chart-series"
 import { formatAmount } from "@/lib/format"
 import type { CcFlowPoint } from "@/lib/types"
 
@@ -42,7 +43,11 @@ export function CcFlowChart({ data, isLoading }: { data: CcFlowPoint[]; isLoadin
 
   // Only the segment at each end of the column gets rounded: with `sign`, the
   // stack grows outward from zero in child order, so the last drawn series on
-  // each side is the outer one.
+  // each side is the outer one. Both sides take [4, 4, 0, 0] — Recharts draws a
+  // below-zero segment from its outer end with a *negative* height pointing back
+  // at the axis, which flips the rectangle so radius indices 0/1 land on the
+  // outer tip there too. [0, 0, 4, 4] would round the seam between segments and
+  // leave the tip square.
   const outbound = active.filter((s) => s.sign === -1)
   const lastInbound = active.filter((s) => s.sign === 1).at(-1)?.key
   const lastOutbound = outbound.at(-1)?.key
@@ -85,7 +90,10 @@ export function CcFlowChart({ data, isLoading }: { data: CcFlowPoint[]; isLoadin
               />
             }
           />
-          {active.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
+          {/* Always rendered: with one series left the legend is the only thing on
+              screen that names it, and a lone below-axis series could be either
+              sent or fees. Hover is an accelerator, not a channel. */}
+          <ChartLegend content={<ChartLegendContent />} />
           {active.map((s) => (
             <Bar
               key={s.key}
@@ -94,11 +102,7 @@ export function CcFlowChart({ data, isLoading }: { data: CcFlowPoint[]; isLoadin
               stackId={STACK}
               fill={`var(--color-${s.key})`}
               radius={
-                s.key === lastInbound
-                  ? [4, 4, 0, 0]
-                  : s.key === lastOutbound
-                    ? [0, 0, 4, 4]
-                    : undefined
+                s.key === lastInbound || s.key === lastOutbound ? [4, 4, 0, 0] : undefined
               }
               maxBarSize={40}
             />

@@ -1,12 +1,6 @@
 import { isCantonApiError } from "@canton/client"
-import type {
-  NetworkDashboard,
-  NodeStats,
-  SurfaceError,
-  VettedPackage,
-  WalletTransaction,
-} from "@/lib/types"
-import { ccFlowByDay, rewardMix, type CcFlowSource } from "@/server/aggregate"
+import type { NetworkDashboard, NodeStats, SurfaceError, VettedPackage } from "@/lib/types"
+import { ccFlowByDay, newest, rewardMix, sum, type CcFlowSource } from "@/server/aggregate"
 import { ledgerFor, validatorFor } from "@/server/client"
 import { listNodes } from "@/server/nodes"
 import { authed } from "@/server/route-helpers"
@@ -16,31 +10,6 @@ const message = (e: unknown) => (isCantonApiError(e) ? e.message : String(e))
 
 const settled = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
   r.status === "fulfilled" ? r.value : fallback
-
-/** Amounts stay strings on the wire; this is the one place they are added up. */
-const sum = (values: string[]): string =>
-  values.reduce((total, v) => total + (Number(v) || 0), 0).toFixed(4)
-
-/**
- * The newest transaction date. Compared as instants rather than as strings:
- * string order only matches time order while every `date` shares one format and
- * one offset, and the attention rules downstream turn this into a "no activity
- * for N days" verdict. A date that will not parse is skipped rather than winning
- * by accident.
- */
-const newest = (txs: WalletTransaction[]): string | null => {
-  let newestDate: string | null = null
-  let newestTime = -Infinity
-
-  for (const tx of txs) {
-    const time = Date.parse(tx.date)
-    if (Number.isFinite(time) && time > newestTime) {
-      newestTime = time
-      newestDate = tx.date
-    }
-  }
-  return newestDate
-}
 
 type Snapshot = { stats: NodeStats; flow: CcFlowSource; errors: SurfaceError[] }
 

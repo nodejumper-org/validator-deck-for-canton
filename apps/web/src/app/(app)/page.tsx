@@ -21,7 +21,6 @@ function DashboardFrame() {
           title="Node health"
           description="Every registered node, in every network. Checked when this page loaded."
           isLoading
-          loadingRows={3}
           flush
         >
           {null}

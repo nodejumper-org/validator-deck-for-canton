@@ -1,13 +1,14 @@
 import type { CcFlowPoint, WalletTransaction } from "@/lib/types"
 
 /**
- * Pure shaping functions for the dashboard charts. No network, no dates from the
+ * Pure shaping functions for the dashboard route. No network, no dates from the
  * clock — everything is derived from the payload passed in, which is what makes
  * them testable.
  *
- * Amounts are parsed to numbers here because charts need numbers. That is the one
- * place it is allowed: the decimal strings stay strings everywhere they are
- * stored or compared.
+ * Amounts are parsed to numbers here because charts and totals need arithmetic.
+ * That is the one place it is allowed: the decimal strings stay strings
+ * everywhere they are stored or compared, which is why `sum` hands the wire a
+ * string back.
  */
 
 /** The YYYY-MM-DD prefix of an ISO timestamp. */
@@ -22,6 +23,32 @@ function num(value: string | undefined): number {
 
 function sortedByDate<T extends { date: string }>(rows: T[]): T[] {
   return rows.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Adds decimal strings into a 4-decimal string; a value that will not parse counts as zero. */
+export function sum(values: string[]): string {
+  return values.reduce((total, v) => total + (Number(v) || 0), 0).toFixed(4)
+}
+
+/**
+ * The newest transaction date. Compared as instants rather than as strings:
+ * string order only matches time order while every `date` shares one format and
+ * one offset, and the attention rules downstream turn this into a "no activity
+ * for N days" verdict. A date that will not parse is skipped rather than winning
+ * by accident.
+ */
+export function newest(txs: WalletTransaction[]): string | null {
+  let newestDate: string | null = null
+  let newestTime = -Infinity
+
+  for (const tx of txs) {
+    const time = Date.parse(tx.date)
+    if (Number.isFinite(time) && time > newestTime) {
+      newestTime = time
+      newestDate = tx.date
+    }
+  }
+  return newestDate
 }
 
 export function rewardMix(

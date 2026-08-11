@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import type { WalletTransaction } from "@/lib/types"
-import { ccFlowByDay, rewardMix } from "./aggregate"
+import { ccFlowByDay, newest, rewardMix, sum } from "./aggregate"
 
 const SELF = "me::122"
 
@@ -131,4 +131,39 @@ test("returns days in ascending order regardless of input order", () => {
 
 test("treats no sources as an empty series", () => {
   expect(ccFlowByDay([])).toEqual([])
+})
+
+test("newest of an empty history is null", () => {
+  expect(newest([])).toBeNull()
+})
+
+test("newest picks the latest instant regardless of input order", () => {
+  const txs = [
+    flowTx({ date: "2026-07-25T10:00:00Z" }),
+    flowTx({ date: "2026-07-26T10:00:00Z" }),
+    flowTx({ date: "2026-07-24T10:00:00Z" }),
+  ]
+  expect(newest(txs)).toBe("2026-07-26T10:00:00Z")
+})
+
+test("newest skips a date that will not parse rather than letting it win", () => {
+  const txs = [flowTx({ date: "2026-07-24T10:00:00Z" }), flowTx({ date: "not-a-date" })]
+  expect(newest(txs)).toBe("2026-07-24T10:00:00Z")
+})
+
+test("newest compares mixed-offset dates as instants, not as strings", () => {
+  // 23:00+05:00 is 18:00Z — later as a string, earlier as an instant.
+  const txs = [
+    flowTx({ date: "2026-07-25T23:00:00+05:00" }),
+    flowTx({ date: "2026-07-25T20:00:00Z" }),
+  ]
+  expect(newest(txs)).toBe("2026-07-25T20:00:00Z")
+})
+
+test("sums decimal strings to a 4-decimal string", () => {
+  expect(sum(["1.5", "2.25", "0.0001"])).toBe("3.7501")
+})
+
+test("a non-numeric amount counts as zero, not NaN", () => {
+  expect(sum(["1.5", "garbage"])).toBe("1.5000")
 })
