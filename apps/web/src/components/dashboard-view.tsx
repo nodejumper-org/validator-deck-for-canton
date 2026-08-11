@@ -27,6 +27,12 @@ export function DashboardView() {
   const { data, isLoading, error, dataUpdatedAt } = useDashboard(network)
 
   const statsError = error as { message: string } | null
+  // A settled first-load failure is not a loading state: React Query's
+  // `isLoading` is `isPending && isFetching`, both false once the query has
+  // errored, and `stats` is then empty for a reason the panel must not mistake
+  // for all-clear. A failed refetch keeps the last good `data`, so this stays
+  // false there and the panel keeps judging from what it last knew.
+  const statsUnknown = Boolean(statsError) && !data
   const dash = "—"
 
   // A fresh install has nothing to show; point at the one action that matters.
@@ -159,8 +165,14 @@ export function DashboardView() {
             a single package, user, or wallet figure had arrived — an all-clear it
             had no basis for, with warnings popping in behind it. Same for `network`:
             until `useNodes()` resolves there is no selection and `inNetwork` is
-            empty, which reads identically. */}
-        <AttentionPanel items={attention} isLoading={healthLoading || isLoading || !network} />
+            empty, which reads identically. `statsUnknown` covers the third way to
+            have no statistics — the query settled on an error, which `isLoading`
+            does not include. */}
+        <AttentionPanel
+          items={attention}
+          isLoading={healthLoading || isLoading || !network}
+          statsUnknown={statsUnknown}
+        />
       </div>
     </>
   )

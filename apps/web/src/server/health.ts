@@ -26,7 +26,9 @@ export async function probeNode(node: PublicNode, ownerId: string): Promise<Node
     network: node.network,
     ledgerOk: false,
     validatorOk: node.validatorApiUrl ? false : null,
-    synchronizerConnected: false,
+    // Null, not false: on this path the read was never issued, so the state is
+    // unknown, and a disconnection must never be asserted from a failed read.
+    synchronizerConnected: null,
     ledgerEnd: null,
     ledgerVersion: null,
     validatorVersion: null,
@@ -56,7 +58,7 @@ export async function probeNode(node: PublicNode, ownerId: string): Promise<Node
     ...base,
     ledgerOk: version.status === "fulfilled",
     validatorOk: node.validatorApiUrl ? validator.status === "fulfilled" : null,
-    synchronizerConnected: settled(syncs, []).length > 0,
+    synchronizerConnected: syncs.status === "fulfilled" ? syncs.value.length > 0 : null,
     ledgerEnd: settled(end, null),
     ledgerVersion: settled(version, null)?.version ?? null,
     validatorVersion: settled(validator, null)?.version ?? null,

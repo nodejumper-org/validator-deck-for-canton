@@ -21,9 +21,15 @@ const SEVERITY_LABEL: Record<AttentionSeverity, string> = {
 export function AttentionPanel({
   items,
   isLoading,
+  statsUnknown,
 }: {
   items: AttentionItem[]
   isLoading?: boolean
+  /** True when the statistics query settled on an error. An empty list is then
+      indeterminate, not an all-clear — "earning" is a claim about wallet data the
+      page provably does not have. Findings already in the list stay valid: they
+      are derived from health, which loaded. */
+  statsUnknown?: boolean
 }) {
   return (
     <DataPanel
@@ -33,10 +39,17 @@ export function AttentionPanel({
       loadingRows={2}
     >
       {items.length === 0 ? (
-        <EmptyState
-          title="Nothing needs attention"
-          hint="Every node in this network is reachable, synchronized, and earning."
-        />
+        statsUnknown ? (
+          <EmptyState
+            title="Attention state unknown"
+            hint="Statistics could not be loaded, so this list may be incomplete."
+          />
+        ) : (
+          <EmptyState
+            title="Nothing needs attention"
+            hint="Every node in this network is reachable, synchronized, and earning."
+          />
+        )
       ) : (
         <ul className="space-y-2.5">
           {items.map((item) => (

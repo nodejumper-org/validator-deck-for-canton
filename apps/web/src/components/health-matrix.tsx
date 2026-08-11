@@ -93,7 +93,11 @@ export function HealthMatrix({
                   </TableCell>
                   <TableCell>
                     <StatusDot ok={n.synchronizerConnected} className="text-[13px]">
-                      {n.synchronizerConnected ? "Connected" : "Disconnected"}
+                      {n.synchronizerConnected === true
+                        ? "Connected"
+                        : n.synchronizerConnected === false
+                          ? "Disconnected"
+                          : "Unknown"}
                     </StatusDot>
                   </TableCell>
                   <TableCell className="tabular text-right font-mono text-[13px]">

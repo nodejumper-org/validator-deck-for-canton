@@ -136,7 +136,8 @@ export type NodeHealth = {
   network: Network
   ledgerOk: boolean
   validatorOk: boolean | null
-  synchronizerConnected: boolean
+  /** Null when the synchronizer read failed: the state is then unknown, not down. */
+  synchronizerConnected: boolean | null
   ledgerEnd: number | null
   ledgerVersion: string | null
   validatorVersion: string | null

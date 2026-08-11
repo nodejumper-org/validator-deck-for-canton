@@ -62,6 +62,18 @@ test("a reachable node with no synchronizer is a bad finding", () => {
   expect(items[0]!.severity).toBe("bad")
 })
 
+// A disconnection is only ever asserted from a read that succeeded. When the
+// synchronizer read itself failed the state is unknown — null — and manufacturing
+// a severity-bad "can neither submit nor receive" out of it would be a false alarm.
+test("a failed synchronizer read is unknown, not a disconnection", () => {
+  const items = attentionItems({
+    health: [health({ synchronizerConnected: null })],
+    stats: [stats()],
+    now: NOW,
+  })
+  expect(items).toEqual([])
+})
+
 test("an unreachable validator suppresses the wallet activity rule", () => {
   const items = attentionItems({
     health: [health({ validatorOk: false })],
@@ -116,6 +128,21 @@ test("a failed wallet read leaves the ledger rules alone", () => {
   expect(titles(items)).toEqual(["No packages vetted"])
 })
 
+// The mirror image: one flag per source. `ok` guards the ledger counts and
+// `walletOk` guards `lastActivityAt` — a credential that lost ParticipantAdmin
+// fails the ledger reads while the onboarded wallet still answers everything,
+// and its five days of silence are a real fact, not a failed read.
+test("a failed ledger read does not gate the wallet staleness rule", () => {
+  const items = attentionItems({
+    health: [health()],
+    stats: [
+      stats({ ok: false, walletOk: true, lastActivityAt: new Date(NOW - 5 * DAY).toISOString() }),
+    ],
+    now: NOW,
+  })
+  expect(titles(items)).toEqual(["No wallet activity for 5 days"])
+})
+
 test("a silent wallet is flagged once it passes the stale threshold", () => {
   const items = attentionItems({
     health: [health()],
@@ -165,10 +192,12 @@ test("a node with no validator configured is informational, not a problem", () =
   expect(items[0]!.severity).toBe("info")
 })
 
-test("statistics rules are skipped when the statistics query failed", () => {
+test("statistics rules are skipped when every statistics read failed", () => {
   const items = attentionItems({
     health: [health()],
-    stats: [stats({ ok: false, packages: 0, deactivatedUsers: 5, lastActivityAt: null })],
+    stats: [
+      stats({ ok: false, walletOk: false, packages: 0, deactivatedUsers: 5, lastActivityAt: null }),
+    ],
     now: NOW,
   })
   expect(items).toEqual([])

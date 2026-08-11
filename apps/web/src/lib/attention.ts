@@ -45,7 +45,9 @@ export function attentionItems({
       continue
     }
 
-    if (!node.synchronizerConnected) {
+    // Strictly `false`: null means the synchronizer read itself failed, and a
+    // disconnection is only ever asserted from a read that succeeded.
+    if (node.synchronizerConnected === false) {
       add(
         "synchronizer",
         "bad",
@@ -64,12 +66,17 @@ export function attentionItems({
     // wallet, while all three wallet reads fail with "No wallet found". Reading
     // the resulting `lastActivityAt: null` as "no activity" would state as fact
     // something the statistics route recorded as a failure, so rules 4 and 5 need
-    // `walletOk` exactly as they need `validatorOk`.
+    // `walletOk` exactly as they need `validatorOk` — and *only* `walletOk`. One
+    // flag per source: `ok` says nothing about the wallet reads, and a credential
+    // that lost ParticipantAdmin fails the ledger reads while its onboarded
+    // wallet still answers, so gating on `ok` too would swallow a real five-day
+    // silence. `hasValidator` is node configuration, not a read result, and needs
+    // no flag at all.
 
     if (node.validatorOk === false) {
       add("validator", "bad", "Validator unreachable", "The Splice validator API did not answer.")
-    } else if (counted?.hasValidator && counted.walletOk) {
-      if (counted.lastActivityAt === null) {
+    } else if (s?.hasValidator && s.walletOk) {
+      if (s.lastActivityAt === null) {
         add(
           "no-activity",
           "warn",
@@ -77,7 +84,7 @@ export function attentionItems({
           "This validator has no recorded wallet transactions.",
         )
       } else {
-        const age = now - Date.parse(counted.lastActivityAt)
+        const age = now - Date.parse(s.lastActivityAt)
         if (age >= STALE_ACTIVITY_MS) {
           add(
             "no-activity",
