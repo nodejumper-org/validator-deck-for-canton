@@ -1,4 +1,4 @@
-import { CantonApiError } from "@canton/client"
+import { CantonApiError } from "@validator-deck/canton-client"
 import { expect, test } from "vitest"
 import { z } from "zod"
 import { handler, HttpError } from "./route-helpers"

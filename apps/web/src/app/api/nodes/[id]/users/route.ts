@@ -1,4 +1,4 @@
-import type { LedgerUser } from "@canton/client"
+import type { LedgerUser } from "@validator-deck/canton-client"
 import { ledgerFor } from "@/server/client"
 import { authed } from "@/server/route-helpers"
 import { createUserSchema } from "@/server/validation"

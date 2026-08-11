@@ -1,5 +1,5 @@
 {
-  "name": "canton-validator-dashboard",
+  "name": "validator-deck-for-canton",
   "private": true,
   "type": "module",
   "engines": {

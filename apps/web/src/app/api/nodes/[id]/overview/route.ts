@@ -1,4 +1,4 @@
-import { isCantonApiError } from "@canton/client"
+import { isCantonApiError } from "@validator-deck/canton-client"
 import type { SurfaceError } from "@/lib/types"
 import { hasValidator, ledgerFor, validatorFor } from "@/server/client"
 import { getPublicNode } from "@/server/nodes"

@@ -1,4 +1,4 @@
-import { isCantonApiError } from "@canton/client"
+import { isCantonApiError } from "@validator-deck/canton-client"
 import type { NodeHealth } from "@/lib/types"
 import { ledgerFor, validatorFor } from "./client"
 import { listNodes, type PublicNode } from "./nodes"
