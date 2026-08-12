@@ -11,7 +11,13 @@ import { signIn, signUp } from "@/lib/auth-client"
 
 const MIN_PASSWORD = 10
 
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({
+  mode,
+  signupOpen,
+}: {
+  mode: "sign-in" | "sign-up"
+  signupOpen: boolean
+}) {
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -115,15 +121,21 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-4 text-[13px]">
-        {isSignUp ? "Already have an account? " : "No account yet? "}
-        <Link
-          href={isSignUp ? "/sign-in" : "/sign-up"}
-          className="text-foreground underline underline-offset-2"
-        >
-          {isSignUp ? "Sign in" : "Create one"}
-        </Link>
-      </p>
+      {isSignUp || signupOpen ? (
+        <p className="text-muted-foreground mt-4 text-[13px]">
+          {isSignUp ? "Already have an account? " : "No account yet? "}
+          <Link
+            href={isSignUp ? "/sign-in" : "/sign-up"}
+            className="text-foreground underline underline-offset-2"
+          >
+            {isSignUp ? "Sign in" : "Create one"}
+          </Link>
+        </p>
+      ) : (
+        <p className="text-muted-foreground mt-4 text-[13px]">
+          Need an account? Ask the operator.
+        </p>
+      )}
     </div>
   )
 }
