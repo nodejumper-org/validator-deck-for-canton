@@ -1,4 +1,4 @@
-import { isCantonApiError } from "@canton/client"
+import { isCantonApiError } from "@validator-deck/canton-client"
 import { hasValidator, ledgerFor, validatorFor } from "@/server/client"
 import { authed } from "@/server/route-helpers"
 import type { Probe } from "@/lib/types"

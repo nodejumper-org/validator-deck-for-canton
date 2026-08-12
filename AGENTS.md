@@ -30,6 +30,14 @@ queries by it, so an id belonging to someone else reads as not found.
 path param is also called `userId` — that is the *Canton* user. The signed-in
 account is always `ownerId`.
 
+**The first account is the admin and sign-up dies with it.** `anyAccountExists`
+in `src/server/accounts.ts` closes `/sign-up/email` via a before-hook the
+moment one user row exists; a database hook hands `role: "admin"` to that
+first row only. Account management is the admin-only `/accounts` page (the
+better-auth admin plugin — its endpoints re-check the role, the page gate is
+UX). "Accounts" is deliberate: "Users" means Canton ledger users everywhere
+else in this app.
+
 **`src/proxy.ts` is not the security boundary.** It only checks that a session
 cookie exists, because it runs before render where the database is unreachable.
 Real verification happens per route.
@@ -156,7 +164,7 @@ publishes the versioned image and cuts the GitHub release but touches no host �
 promoting a version to an environment is a separate, manual act. Do not add a
 `push:` trigger back, and do not make `release.yml` deploy.
 
-The published image is `ghcr.io/nodejumper-org/validator-deck-web`. In
+The published image is `ghcr.io/nodejumper-org/validator-deck`. In
 `_deploy.yml` that owner comes from `github.repository_owner`, but
 `docker-compose.yml` names it literally, because a deploy host pulls with no
 GitHub context — if the repo ever moves again, that line moves with it.

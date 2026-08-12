@@ -34,8 +34,10 @@ npm run db:up                 # starts PostgreSQL 18 on localhost:5434
 npm run dev                   # http://localhost:3000
 ```
 
-Open the app and create an account. Registration is open — the person running
-the deployment controls who can reach it.
+Open the app and create an account — the first one becomes the admin, and
+sign-up closes permanently once it exists. The admin adds every further
+account from the Accounts page; there is no self-service registration and
+nothing to configure.
 
 `APP_SECRET` encrypts stored OIDC client secrets at rest (AES-256-GCM). Without
 it the app refuses to store or read credentials. `BETTER_AUTH_SECRET` signs
@@ -62,7 +64,7 @@ which is what `npm run db:up && npm run dev` gives you.
 
 **One `docker-compose.yml` for everything.** Locally it builds the image; on a
 deploy host, where there is no source tree, the same file pulls
-`ghcr.io/<owner>/validator-deck-web:$IMAGE_TAG` instead. The image reads every
+`ghcr.io/<owner>/validator-deck:$IMAGE_TAG` instead. The image reads every
 setting at runtime, so **the same artifact is promoted from dev to prod** rather
 than rebuilt — dev and prod differ only in the values in their host `.env`.
 
@@ -77,14 +79,14 @@ tags the image `dev`. A push to `dev` runs `ci.yml` and stops there. The deploy
 calls a reusable workflow, which:
 
 1. runs `npm run check` and `npm test`,
-2. builds and pushes `ghcr.io/<owner>/validator-deck-web:<tag>`,
+2. builds and pushes `ghcr.io/<owner>/validator-deck:<tag>`,
 3. copies `docker-compose.yml` to `~/canton-validator-deck/` on the host,
 4. rewrites only the `IMAGE_TAG` line in the host `.env`, then
    `docker compose pull && up -d --wait`.
 
 **Releases are cut by tag.** Pushing a `v*.*.*` tag runs
 `.github/workflows/release.yml`: it tests, publishes
-`ghcr.io/<owner>/validator-deck-web:<version>`, and creates the GitHub release —
+`ghcr.io/<owner>/validator-deck:<version>`, and creates the GitHub release —
 but touches no host. To run a released version somewhere, set that version as
 `IMAGE_TAG` in the host `.env` and `docker compose pull && up -d`.
 
@@ -217,8 +219,18 @@ Before putting this on a public network:
 - treat the database as secret material — it holds credentials that can
   administer your Canton nodes.
 
-Registration is open by default. If that is not what you want, restrict access at
-the network edge or add an invite check in `apps/web/src/server/auth.ts`.
+Sign-up is open only while no account exists; the first account is the admin
+and every later one is created by them on the Accounts page. Do the first
+sign-up immediately after first boot — that is what closes the window. No
+mail is sent anywhere: the admin hands passwords over out of band and resets
+them the same way.
 
 The container runs as the unprivileged `node` user and the image carries no
 `.env` — runtime configuration comes from compose only.
+
+## Trademarks
+
+Canton and Canton Network are trademarks of Digital Asset (Switzerland) GmbH.
+This project is independent and is not affiliated with, sponsored by, or
+endorsed by Digital Asset. The name is used only to identify the network this
+tool operates against.

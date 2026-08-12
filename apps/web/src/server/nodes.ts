@@ -1,4 +1,4 @@
-import { clearTokenCache } from "@canton/client"
+import { clearTokenCache } from "@validator-deck/canton-client"
 import { and, eq } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { z } from "zod"

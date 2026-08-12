@@ -15,6 +15,13 @@
       "when": 1785225286271,
       "tag": "0001_living_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786529904423,
+      "tag": "0002_marvelous_shard",
+      "breakpoints": true
     }
   ]
 }

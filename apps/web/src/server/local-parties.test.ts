@@ -1,4 +1,4 @@
-import type { LedgerClient } from "@canton/client"
+import type { LedgerClient } from "@validator-deck/canton-client"
 import { beforeAll, beforeEach, expect, test, vi } from "vitest"
 import { getDb, resetDbForTests } from "./db"
 import { getLocalParties, invalidateLocalScan, isStale, startLocalScan } from "./local-parties"

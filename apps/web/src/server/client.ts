@@ -4,7 +4,7 @@ import {
   createValidatorClient,
   type LedgerClient,
   type ValidatorClient,
-} from "@canton/client"
+} from "@validator-deck/canton-client"
 import { open } from "./crypto"
 import { getNode } from "./nodes"
 import { HttpError } from "./route-helpers"

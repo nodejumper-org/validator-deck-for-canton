@@ -1,4 +1,4 @@
-import { isCantonApiError } from "@canton/client"
+import { isCantonApiError } from "@validator-deck/canton-client"
 import type { NetworkDashboard, NodeStats, SurfaceError, VettedPackage } from "@/lib/types"
 import { ccFlowByDay, newest, rewardMix, sum, type CcFlowSource } from "@/server/aggregate"
 import { ledgerFor, validatorFor } from "@/server/client"

@@ -1,6 +1,6 @@
 "use client"
 
-import { Boxes, Gauge, Server, Users, Wallet, Landmark, Package } from "lucide-react"
+import { Boxes, Gauge, Server, UserCog, Users, Wallet, Landmark, Package } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/logo"
 import { NetworkBadge } from "@/components/network-badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
+import { useSession } from "@/lib/auth-client"
 import { BRAND } from "@/lib/brand"
 import { useNodes } from "@/lib/queries"
 import { cn } from "@/lib/utils"
@@ -67,6 +68,8 @@ function NavLink({
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { data: nodes } = useNodes()
+  const { data: session } = useSession()
+  const isAdmin = session?.user.role === "admin"
 
   const match = /^\/nodes\/([^/]+)/.exec(pathname)
   const activeNodeId = match?.[1]
@@ -90,6 +93,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               active={item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)}
             />
           ))}
+
+          {isAdmin ? (
+            <NavLink
+              href="/accounts"
+              label="Accounts"
+              icon={UserCog}
+              active={pathname.startsWith("/accounts")}
+            />
+          ) : null}
 
           {activeNode ? (
             <div className="mt-1 space-y-0.5 border-l pl-2 ml-4">

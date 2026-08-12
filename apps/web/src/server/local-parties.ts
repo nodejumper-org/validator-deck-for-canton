@@ -1,4 +1,4 @@
-import type { LedgerClient } from "@canton/client"
+import type { LedgerClient } from "@validator-deck/canton-client"
 import { and, eq, lt, sql } from "drizzle-orm"
 import type { LocalScanState } from "@/lib/types"
 import { ledgerForNode } from "./client"

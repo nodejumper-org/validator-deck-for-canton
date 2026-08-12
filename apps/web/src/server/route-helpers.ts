@@ -1,4 +1,4 @@
-import { CantonApiError } from "@canton/client"
+import { CantonApiError } from "@validator-deck/canton-client"
 import { ZodError } from "zod"
 
 /** A failure this app decided on, as opposed to one the node reported. */

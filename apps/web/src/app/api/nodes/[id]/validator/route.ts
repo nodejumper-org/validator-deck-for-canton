@@ -1,4 +1,4 @@
-import { isCantonApiError } from "@canton/client"
+import { isCantonApiError } from "@validator-deck/canton-client"
 import type { SurfaceError } from "@/lib/types"
 import { validatorFor } from "@/server/client"
 import { authed } from "@/server/route-helpers"
