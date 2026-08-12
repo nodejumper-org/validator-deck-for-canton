@@ -1,6 +1,9 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { APIError, createAuthMiddleware } from "better-auth/api"
+import { admin } from "better-auth/plugins"
 import { BRAND } from "@/lib/brand"
+import { anyAccountExists } from "./accounts"
 import { getDb } from "./db"
 import * as schema from "./schema"
 
@@ -44,10 +47,32 @@ async function build() {
       updateAge: 60 * 60 * 24,
     },
     advanced: {
-      // Registration is open by design: this is self-hosted, and whoever runs it
-      // decides who can reach it. See the security note in the README.
+      // Sign-up is open only while the user table is empty (see hooks below);
+      // the first account is the admin. README "Security" has the model.
       cookiePrefix: BRAND.cookiePrefix,
     },
+    databaseHooks: {
+      user: {
+        create: {
+          // The first account bootstraps the instance and owns it; everyone
+          // after is created by that admin and stays a plain user — including
+          // admin-created ones, which is what keeps "one admin" true.
+          before: async (u) => ({
+            data: { ...u, role: (await anyAccountExists()) ? "user" : "admin" },
+          }),
+        },
+      },
+    },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-up/email" && (await anyAccountExists())) {
+          throw new APIError("FORBIDDEN", {
+            message: "Sign-up is closed. Ask the operator for an account.",
+          })
+        }
+      }),
+    },
+    plugins: [admin()],
   })
 }
 
