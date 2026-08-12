@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
+import { authClient } from "./auth-client"
 import type {
   DarUploadResult,
   FleetHealth,
@@ -36,6 +37,7 @@ export const queryKeys = {
       invalidateQueries calls already spread through this file reach them. */
   dashboardHealth: () => ["dashboard", "health"] as const,
   dashboardNetwork: (network: Network) => ["dashboard", "network", network] as const,
+  accounts: () => ["accounts"] as const,
 }
 
 export function useNodes() {
@@ -326,4 +328,81 @@ export function useFleetHealth() {
     queryKey: queryKeys.dashboardHealth(),
     queryFn: () => api<FleetHealth>("/api/dashboard/health").then((r) => r.nodes),
   })
+}
+
+// ------------------------------------------------------------------- accounts
+// App accounts (the admin plugin's "users") — NOT Canton ledger users, which
+// are what `users(nodeId)` above refers to.
+
+export type Account = {
+  id: string
+  name: string
+  email: string
+  role: string
+  banned: boolean
+  createdAt: Date | string
+}
+
+export function useAccounts() {
+  return useQuery({
+    queryKey: queryKeys.accounts(),
+    queryFn: async () => {
+      const { data, error } = await authClient.admin.listUsers({
+        query: { limit: 500, sortBy: "createdAt", sortDirection: "asc" },
+      })
+      if (error) throw new Error(error.message ?? "Failed to list accounts")
+      return data.users as Account[]
+    },
+  })
+}
+
+function useAccountMutation<TInput>(
+  run: (input: TInput) => Promise<{ error: { message?: string | null } | null }>,
+  verb: string,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: TInput) => {
+      const { error } = await run(input)
+      if (error) throw new Error(error.message ?? `Failed to ${verb} account`)
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.accounts() }),
+    onError: (e) => toast.error(e.message),
+  })
+}
+
+export function useCreateAccount() {
+  return useAccountMutation(
+    (input: { name: string; email: string; password: string }) =>
+      authClient.admin.createUser(input),
+    "create",
+  )
+}
+
+export function useSetAccountPassword() {
+  return useAccountMutation(
+    (input: { userId: string; newPassword: string }) => authClient.admin.setUserPassword(input),
+    "update",
+  )
+}
+
+export function useBanAccount() {
+  return useAccountMutation(
+    (input: { userId: string }) => authClient.admin.banUser(input),
+    "ban",
+  )
+}
+
+export function useUnbanAccount() {
+  return useAccountMutation(
+    (input: { userId: string }) => authClient.admin.unbanUser(input),
+    "unban",
+  )
+}
+
+export function useRemoveAccount() {
+  return useAccountMutation(
+    (input: { userId: string }) => authClient.admin.removeUser(input),
+    "remove",
+  )
 }
