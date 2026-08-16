@@ -1,3 +1,5 @@
+import { APIError } from "better-auth/api"
+
 /**
  * Single sign-on configuration, read from the environment.
  *
@@ -42,4 +44,36 @@ export function oidcConfigFromEnv(env: Env = process.env): OidcConfig | null {
     adminGroup: env.OIDC_ADMIN_GROUP || "deck-admin",
     providerName: env.OIDC_PROVIDER_NAME || "Keycloak",
   }
+}
+
+/**
+ * The admission decision, and the only place an OIDC account's role comes from.
+ *
+ * The realm behind this provider is an organisation realm as well as the
+ * operator's: it holds tenants' wallet end users, and Keycloak lets any user of
+ * a realm obtain a token from any client in it. Being in the realm is therefore
+ * not evidence of being an operator — this group is. Anything that is not a
+ * list of strings containing it is refused, so a renamed mapper or a claim that
+ * never arrives locks the door instead of opening it.
+ *
+ * It runs at EVERY sign-in (genericOAuth `overrideUserInfo`), which is what
+ * makes a membership removed in Keycloak reach an account that already exists
+ * here.
+ */
+export function mapOidcProfile(
+  profile: Record<string, unknown>,
+  adminGroup: string,
+): { role: "admin" } {
+  const groups = profile.groups
+  const member =
+    Array.isArray(groups) &&
+    groups.every((g) => typeof g === "string") &&
+    groups.includes(adminGroup)
+
+  if (!member) {
+    throw new APIError("FORBIDDEN", {
+      message: `This account is not a member of ${adminGroup}. Ask an operator for access.`,
+    })
+  }
+  return { role: "admin" }
 }
