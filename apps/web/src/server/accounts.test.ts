@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm"
 import { beforeAll, beforeEach, expect, test } from "vitest"
-import { anyAccountExists } from "./accounts"
+import { anyAccountExists, roleForNewUser } from "./accounts"
 import { getAuth, resetAuthForTests } from "./auth"
 import { getDb, resetDbForTests } from "./db"
 import { user } from "./schema"
@@ -91,4 +91,25 @@ test("a plain user cannot create accounts", async () => {
       headers: new Headers({ cookie: customerCookie }),
     }),
   ).rejects.toThrow()
+})
+
+test("the first password account is still the admin", async () => {
+  expect(await roleForNewUser({})).toBe("admin")
+})
+
+test("a later password account is still a plain user", async () => {
+  await createTestUser("first@example.test")
+  expect(await roleForNewUser({})).toBe("user")
+})
+
+test("a role decided upstream survives registration order", async () => {
+  await createTestUser("first@example.test")
+  expect(await roleForNewUser({ role: "admin" })).toBe("admin")
+})
+
+// The admin plugin stamps its default role on every new row, so `user` on an
+// incoming record proves nothing about who decided it. Treating it as a
+// decision left the very first sign-up a plain account and the deck admin-less.
+test("a defaulted user role does not outrank registration order", async () => {
+  expect(await roleForNewUser({ role: "user" })).toBe("admin")
 })

@@ -1,5 +1,6 @@
 import { AuthForm } from "@/components/auth-form"
 import { anyAccountExists } from "@/server/accounts"
+import { ssoButtonProps } from "@/server/oidc"
 
 export const metadata = { title: "Sign in" }
 
@@ -7,5 +8,5 @@ export const metadata = { title: "Sign in" }
 export const dynamic = "force-dynamic"
 
 export default async function SignInPage() {
-  return <AuthForm mode="sign-in" signupOpen={!(await anyAccountExists())} />
+  return <AuthForm mode="sign-in" signupOpen={!(await anyAccountExists())} sso={ssoButtonProps()} />
 }

@@ -12,9 +12,9 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@validator-deck/canton-client": "*",
     "@tanstack/react-query": "^5.101.4",
-    "better-auth": "^1.6.25",
+    "@validator-deck/canton-client": "*",
+    "better-auth": "^1.6.29",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

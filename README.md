@@ -43,6 +43,27 @@ nothing to configure.
 it the app refuses to store or read credentials. `BETTER_AUTH_SECRET` signs
 session cookies; it falls back to `APP_SECRET` if unset.
 
+## Signing in through an identity provider
+
+Optional, and off unless configured. Set `OIDC_ISSUER` to a realm root — say
+`https://keycloak.example.com/realms/ftp` — together with `OIDC_CLIENT_ID` and
+`OIDC_CLIENT_SECRET`, and the sign-in page grows a second button. Leave the
+issuer empty and nothing changes: no provider is registered and the deck stays
+email and password only. A half-filled block is a startup error rather than a
+button that cannot work.
+
+`OIDC_ADMIN_GROUP` (default `deck-admin`) is the whole admission decision, not a
+convenience: a realm usually holds more people than should reach a console that
+manages nodes, and any user of a realm can obtain a token from any client in it.
+Only members of that group are admitted, they are admitted as admins, and the
+check runs at every sign-in — so removing somebody from the group in the
+provider stops their next sign-in without touching this database. Everyone else
+is refused with a message naming the group. `OIDC_PROVIDER_NAME` (default
+`Keycloak`) is only the button's label.
+
+Password sign-in is untouched, including the closed sign-up: single sign-on adds
+a way in for a group, it does not take one away.
+
 The repo keeps a single `.env` at the root. Next only reads `.env` from the app
 directory, so `scripts/link-root-env.mjs` links it into `apps/web` before dev,
 build, and start. That runs automatically.

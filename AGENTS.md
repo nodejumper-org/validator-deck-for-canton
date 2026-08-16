@@ -38,6 +38,19 @@ better-auth admin plugin — its endpoints re-check the role, the page gate is
 UX). "Accounts" is deliberate: "Users" means Canton ledger users everywhere
 else in this app.
 
+**SSO is optional, and the group is the gate.** With `OIDC_ISSUER` unset the
+provider is never registered and the deck behaves exactly as it did before
+v0.3.0. Configured, `src/server/oidc.ts` admits only members of
+`OIDC_ADMIN_GROUP` (default `deck-admin`) and gives them `role: "admin"`,
+deciding again at every sign-in — the realm behind the provider also holds
+customers' wallet users, so realm membership is not evidence of being an
+operator. `providerId` is the literal `oidc` and is stored in
+`account.providerId`: renaming it orphans every existing link. `roleForNewUser`
+in `src/server/accounts.ts` is what keeps the two role sources apart —
+registration order for password accounts, the group for OIDC ones — and it
+honours only `admin` from upstream, because the admin plugin stamps its default
+`user` on every new row.
+
 **`src/proxy.ts` is not the security boundary.** It only checks that a session
 cookie exists, because it runs before render where the database is unreachable.
 Real verification happens per route.
