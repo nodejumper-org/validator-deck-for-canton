@@ -1,5 +1,5 @@
 import { expect, test } from "vitest"
-import { mapOidcProfile, OIDC_PROVIDER_ID, oidcConfigFromEnv } from "./oidc"
+import { mapOidcProfile, OIDC_PROVIDER_ID, oidcConfigFromEnv, ssoButtonProps } from "./oidc"
 
 const full = {
   OIDC_ISSUER: "https://keycloak.example.test/realms/ftp",
@@ -52,4 +52,14 @@ test("a missing groups claim is a refusal, not an empty membership", () => {
 test("a groups claim that is not a list of strings is refused", () => {
   expect(() => mapOidcProfile({ groups: "deck-admin" }, "deck-admin")).toThrow(/deck-admin/)
   expect(() => mapOidcProfile({ groups: [1, 2] }, "deck-admin")).toThrow(/deck-admin/)
+})
+
+test("only the provider name crosses to the browser", () => {
+  const props = ssoButtonProps(full)
+  expect(props).toEqual({ providerName: "Keycloak" })
+  expect(JSON.stringify(props)).not.toContain("s3cret")
+})
+
+test("no provider, no button", () => {
+  expect(ssoButtonProps({})).toBeNull()
 })

@@ -47,6 +47,17 @@ export function oidcConfigFromEnv(env: Env = process.env): OidcConfig | null {
 }
 
 /**
+ * What the sign-in page may hand to a client component.
+ *
+ * Narrow by construction: the client secret cannot leak into the browser
+ * through a shape that has no field to carry it.
+ */
+export function ssoButtonProps(env: Env = process.env): { providerName: string } | null {
+  const cfg = oidcConfigFromEnv(env)
+  return cfg ? { providerName: cfg.providerName } : null
+}
+
+/**
  * The admission decision, and the only place an OIDC account's role comes from.
  *
  * The realm behind this provider is an organisation realm as well as the
