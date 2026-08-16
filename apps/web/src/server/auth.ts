@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { APIError, createAuthMiddleware } from "better-auth/api"
 import { admin } from "better-auth/plugins"
 import { BRAND } from "@/lib/brand"
-import { anyAccountExists } from "./accounts"
+import { anyAccountExists, roleForNewUser } from "./accounts"
 import { getDb } from "./db"
 import * as schema from "./schema"
 
@@ -54,11 +54,13 @@ async function build() {
     databaseHooks: {
       user: {
         create: {
-          // The first account bootstraps the instance and owns it; everyone
-          // after is created by that admin and stays a plain user — including
-          // admin-created ones, which is what keeps "one admin" true.
+          // The first PASSWORD account bootstraps the instance and owns it;
+          // everyone after is created by that admin and stays a plain user —
+          // including admin-created ones, which is what keeps "one admin"
+          // true. An account arriving through OIDC already carries the role
+          // its Keycloak group decided, and roleForNewUser leaves it alone.
           before: async (u) => ({
-            data: { ...u, role: (await anyAccountExists()) ? "user" : "admin" },
+            data: { ...u, role: await roleForNewUser(u as { role?: unknown }) },
           }),
         },
       },
