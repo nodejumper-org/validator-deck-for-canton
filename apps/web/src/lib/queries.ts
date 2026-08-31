@@ -12,6 +12,7 @@ import type {
   LocalScanState,
   Network,
   NetworkDashboard,
+  NodeAccessRow,
   NodeOverview,
   NodeSummary,
   PackagesResult,
@@ -39,6 +40,7 @@ export const queryKeys = {
   dashboardHealth: () => ["dashboard", "health"] as const,
   dashboardNetwork: (network: Network) => ["dashboard", "network", network] as const,
   accounts: () => ["accounts"] as const,
+  nodeAccess: () => ["node-access"] as const,
 }
 
 export function useNodes() {
@@ -391,6 +393,31 @@ export function useUnbanAccount() {
     (input: { userId: string }) => authClient.admin.unbanUser(input),
     "unban",
   )
+}
+
+/** Every node in the deck with its owner and grantees. Admin page only. */
+export function useNodeAccess() {
+  return useQuery({
+    queryKey: queryKeys.nodeAccess(),
+    queryFn: () => api<{ nodes: NodeAccessRow[] }>("/api/admin/node-access").then((r) => r.nodes),
+  })
+}
+
+export function useSetNodeAccess() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { nodeId: string; userIds: string[] }) =>
+      api<{ node: NodeAccessRow }>(`/api/admin/node-access/${input.nodeId}`, {
+        method: "PUT",
+        body: JSON.stringify({ userIds: input.userIds }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.nodeAccess() })
+      // A grant changes what the granted account's own node list returns.
+      void qc.invalidateQueries({ queryKey: queryKeys.nodes() })
+    },
+    onError: (e: ApiError) => toast.error(e.message),
+  })
 }
 
 export function useSetAccountRole() {

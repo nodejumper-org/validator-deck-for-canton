@@ -6,6 +6,8 @@ import { AccountCreateDialog } from "@/components/account-create-dialog"
 import { AccountDeleteDialog } from "@/components/account-delete-dialog"
 import { AccountPasswordDialog } from "@/components/account-password-dialog"
 import { PageHeader } from "@/components/app-shell"
+import { NetworkBadge } from "@/components/network-badge"
+import { NodeAccessDialog } from "@/components/node-access-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,9 +30,11 @@ import {
   type Account,
   useAccounts,
   useBanAccount,
+  useNodeAccess,
   useSetAccountRole,
   useUnbanAccount,
 } from "@/lib/queries"
+import type { NodeAccessRow } from "@/lib/types"
 
 export function AccountsView() {
   const { data: accounts, isPending } = useAccounts()
@@ -38,9 +42,11 @@ export function AccountsView() {
   const ban = useBanAccount()
   const unban = useUnbanAccount()
   const setRole = useSetAccountRole()
+  const { data: nodeAccess, isPending: nodeAccessPending } = useNodeAccess()
   const [createOpen, setCreateOpen] = useState(false)
   const [passwordFor, setPasswordFor] = useState<Account | null>(null)
   const [deleteFor, setDeleteFor] = useState<Account | null>(null)
+  const [accessFor, setAccessFor] = useState<NodeAccessRow | null>(null)
 
   return (
     <div>
@@ -155,11 +161,50 @@ export function AccountsView() {
             </TableBody>
           </Table>
         )}
+
+        <h2 className="mt-8 mb-3 font-medium text-[13px]">Node access</h2>
+        {nodeAccessPending ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Node</TableHead>
+                <TableHead>Network</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>With access</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(nodeAccess ?? []).map((node) => (
+                <TableRow key={node.id}>
+                  <TableCell className="font-medium">{node.name}</TableCell>
+                  <TableCell>
+                    <NetworkBadge network={node.network} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{node.owner.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {node.grantees.length === 0
+                      ? "Owner only"
+                      : node.grantees.map((g) => g.name).join(", ")}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => setAccessFor(node)}>
+                      Manage
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       <AccountCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
       <AccountPasswordDialog account={passwordFor} onClose={() => setPasswordFor(null)} />
       <AccountDeleteDialog account={deleteFor} onClose={() => setDeleteFor(null)} />
+      <NodeAccessDialog node={accessFor} onClose={() => setAccessFor(null)} />
     </div>
   )
 }
