@@ -1,5 +1,5 @@
 import { expect, test } from "vitest"
-import { type HealthSort, sortHealth } from "./health-sort"
+import { DEFAULT_NODE_SORT, nextSort, type NodeSort, sortNodes } from "./node-sort"
 import type { NodeHealth } from "./types"
 
 const node = (name: string, network: NodeHealth["network"]): NodeHealth => ({
@@ -23,7 +23,7 @@ const rows = [
   node("bravo", "testnet"),
 ]
 
-const names = (sort: HealthSort) => sortHealth(rows, sort).map((n) => n.name)
+const names = (sort: NodeSort) => sortNodes(rows, sort).map((n) => n.name)
 
 test("defaults to network order, then name", () => {
   expect(names({ key: "network", direction: "asc" })).toEqual(["alpha", "bravo", "mike", "zulu"])
@@ -32,12 +32,12 @@ test("defaults to network order, then name", () => {
 // devnet/mainnet/testnet alphabetically would put devnet first, which says
 // nothing about consequence. NETWORK_ORDER is the order the whole UI uses.
 test("sorts networks by consequence, not alphabetically", () => {
-  const networks = sortHealth(rows, { key: "network", direction: "asc" }).map((n) => n.network)
+  const networks = sortNodes(rows, { key: "network", direction: "asc" }).map((n) => n.network)
   expect(networks).toEqual(["mainnet", "testnet", "devnet", "devnet"])
 })
 
 test("reverses the network order when descending", () => {
-  const networks = sortHealth(rows, { key: "network", direction: "desc" }).map((n) => n.network)
+  const networks = sortNodes(rows, { key: "network", direction: "desc" }).map((n) => n.network)
   expect(networks).toEqual(["devnet", "devnet", "testnet", "mainnet"])
 })
 
@@ -57,7 +57,7 @@ test("reverses the name sort when descending", () => {
 
 test("compares names case-insensitively", () => {
   const mixed = [node("Beta", "devnet"), node("alpha", "devnet"), node("Gamma", "devnet")]
-  expect(sortHealth(mixed, { key: "name", direction: "asc" }).map((n) => n.name)).toEqual([
+  expect(sortNodes(mixed, { key: "name", direction: "asc" }).map((n) => n.name)).toEqual([
     "alpha",
     "Beta",
     "Gamma",
@@ -66,6 +66,37 @@ test("compares names case-insensitively", () => {
 
 test("does not mutate the input", () => {
   const input = [...rows]
-  sortHealth(input, { key: "name", direction: "desc" })
+  sortNodes(input, { key: "name", direction: "desc" })
   expect(input.map((n) => n.name)).toEqual(["zulu", "alpha", "mike", "bravo"])
+})
+
+// Both node tables share the comparator, so it must not require the health
+// fields — the Nodes page rows carry URLs and credentials instead.
+test("sorts any row that has a name and a network", () => {
+  const summaries = [
+    { id: "1", name: "zulu", network: "devnet" as const, ledgerApiUrl: "https://z" },
+    { id: "2", name: "alpha", network: "mainnet" as const, ledgerApiUrl: "https://a" },
+  ]
+  const sorted = sortNodes(summaries, { key: "network", direction: "asc" })
+  expect(sorted.map((n) => n.name)).toEqual(["alpha", "zulu"])
+  // The element type survives: callers still see their own fields.
+  expect(sorted[0]!.ledgerApiUrl).toBe("https://a")
+})
+
+test("the default sort is network, ascending", () => {
+  expect(DEFAULT_NODE_SORT).toEqual({ key: "network", direction: "asc" })
+})
+
+test("clicking the active column flips its direction", () => {
+  expect(nextSort({ key: "name", direction: "asc" }, "name")).toEqual({
+    key: "name",
+    direction: "desc",
+  })
+})
+
+test("clicking a different column starts it ascending", () => {
+  expect(nextSort({ key: "name", direction: "desc" }, "network")).toEqual({
+    key: "network",
+    direction: "asc",
+  })
 })

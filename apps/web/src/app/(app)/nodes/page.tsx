@@ -2,12 +2,14 @@
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 import { PageHeader } from "@/components/app-shell"
 import { Copyable } from "@/components/copyable"
 import { DataPanel, EmptyState } from "@/components/data-panel"
 import { DeleteNodeDialog } from "@/components/delete-node-dialog"
 import { NetworkBadge } from "@/components/network-badge"
 import { NodeFormDialog } from "@/components/node-form-dialog"
+import { SortableHead } from "@/components/sortable-head"
 import { StatusDot } from "@/components/status-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDuration } from "@/lib/format"
+import { DEFAULT_NODE_SORT, nextSort, type NodeSort, type NodeSortKey, sortNodes } from "@/lib/node-sort"
 import { useFleetHealth, useNodes } from "@/lib/queries"
 import type { NodeHealth } from "@/lib/types"
 
@@ -63,6 +66,11 @@ export default function NodesPage() {
   const { data: nodes, isLoading, error } = useNodes()
   const { data: health, isPending: healthPending } = useFleetHealth()
   const healthById = new Map((health ?? []).map((h) => [h.id, h]))
+  // The same comparator and default the dashboard's health table uses, so the
+  // two lists of nodes never disagree about what sorted means.
+  const [sort, setSort] = useState<NodeSort>(DEFAULT_NODE_SORT)
+  const toggle = (key: NodeSortKey) => setSort((s) => nextSort(s, key))
+  const rows = sortNodes(nodes ?? [], sort)
 
   const addButton = (
     <NodeFormDialog
@@ -97,8 +105,12 @@ export default function NodesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[18%]">Name</TableHead>
-                    <TableHead className="w-[8%]">Network</TableHead>
+                    <SortableHead column="name" sort={sort} onSort={toggle} className="w-[18%]">
+                      Name
+                    </SortableHead>
+                    <SortableHead column="network" sort={sort} onSort={toggle} className="w-[8%]">
+                      Network
+                    </SortableHead>
                     <TableHead className="w-[30%]">Ledger API</TableHead>
                     <TableHead className="w-[14%]">Validator</TableHead>
                     <TableHead className="w-[26%]">Connection</TableHead>
@@ -106,7 +118,7 @@ export default function NodesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nodes.map((node) => (
+                  {rows.map((node) => (
                     <TableRow key={node.id}>
                       <TableCell>
                         <Link
