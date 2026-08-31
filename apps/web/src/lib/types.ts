@@ -51,13 +51,6 @@ export type NodeAccessRow = {
   grantees: AccountRef[]
 }
 
-export type Probe = { ok: boolean; detail: string; latencyMs: number }
-
-export type TestResult = {
-  ledger: Probe
-  validator: Probe | null
-}
-
 export type ConnectedSynchronizer = {
   synchronizerAlias: string
   synchronizerId: string

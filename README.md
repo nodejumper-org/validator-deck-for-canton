@@ -133,14 +133,14 @@ Open **Nodes → Register node**. You need:
 | Client ID / secret | OIDC client credentials |
 | Audience / Scope | Usually the validator URL and `daml_ledger_api` |
 
-Press **Test** on the node row to confirm both APIs answer before going further;
-it reports each surface separately with its latency.
+The Nodes page checks every registered node when it loads, so the Connection
+column tells you straight away whether both APIs answer.
 
 ## What each page does
 
 - **Dashboard** — cross-node stat tiles, a health matrix, and four charts: CC
   received per day, reward mix, rights distribution, and package version sprawl.
-- **Nodes** — register, edit, remove, and test nodes.
+- **Nodes** — register, edit, and remove nodes; each row shows whether it is reachable.
 - **Overview** — participant ID, Canton and Splice versions, connected
   synchronizers, ledger offset, user and package counts.
 - **Users** — create, deactivate, and delete ledger users; grant and revoke all
