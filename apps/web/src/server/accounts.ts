@@ -1,5 +1,7 @@
+import { and, eq } from "drizzle-orm"
 import { getDb } from "./db"
-import { user } from "./schema"
+import { OIDC_PROVIDER_ID } from "./oidc"
+import { account, user } from "./schema"
 
 /**
  * The sign-up gate: registration is open only while the user table is empty.
@@ -30,4 +32,21 @@ export async function anyAccountExists(): Promise<boolean> {
 export async function roleForNewUser(incoming: { role?: unknown }): Promise<"admin" | "user"> {
   if (incoming.role === "admin") return "admin"
   return (await anyAccountExists()) ? "user" : "admin"
+}
+
+/**
+ * Whether an account signs in through the identity provider.
+ *
+ * `providerId` is the literal `oidc` — the same constant the generic OAuth
+ * provider is registered under. Renaming it orphans every existing link, and
+ * would silently unguard the role check that reads this.
+ */
+export async function hasOidcAccount(userId: string): Promise<boolean> {
+  const db = await getDb()
+  const rows = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(and(eq(account.userId, userId), eq(account.providerId, OIDC_PROVIDER_ID)))
+    .limit(1)
+  return rows.length > 0
 }

@@ -3,7 +3,7 @@ import { beforeAll, beforeEach, expect, test } from "vitest"
 import { anyAccountExists, roleForNewUser } from "./accounts"
 import { getAuth, resetAuthForTests } from "./auth"
 import { getDb, resetDbForTests } from "./db"
-import { user } from "./schema"
+import { account, user } from "./schema"
 import { createTestUser } from "./test-support"
 
 beforeAll(() => {
@@ -112,4 +112,91 @@ test("a role decided upstream survives registration order", async () => {
 // decision left the very first sign-up a plain account and the deck admin-less.
 test("a defaulted user role does not outrank registration order", async () => {
   expect(await roleForNewUser({ role: "user" })).toBe("admin")
+})
+
+// ------------------------------------------------------------- role changes
+
+/** Signs the bootstrap admin up and returns their id and session cookie. */
+async function bootstrapAdmin(): Promise<{ id: string; cookie: string }> {
+  const auth = await getAuth()
+  const { response, headers } = await auth.api.signUpEmail({
+    body: operator,
+    returnHeaders: true,
+  })
+  return { id: response.user.id, cookie: headers.get("set-cookie") ?? "" }
+}
+
+test("an admin promotes another account", async () => {
+  const auth = await getAuth()
+  const { cookie } = await bootstrapAdmin()
+  const created = await auth.api.createUser({
+    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
+    headers: new Headers({ cookie }),
+  })
+
+  await auth.api.setRole({
+    body: { userId: created.user.id, role: "admin" },
+    headers: new Headers({ cookie }),
+  })
+
+  expect(await roleOf("colleague@example.test")).toBe("admin")
+})
+
+test("an admin demotes another admin back to a plain account", async () => {
+  const auth = await getAuth()
+  const { cookie } = await bootstrapAdmin()
+  const created = await auth.api.createUser({
+    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
+    headers: new Headers({ cookie }),
+  })
+  const headers = new Headers({ cookie })
+
+  await auth.api.setRole({ body: { userId: created.user.id, role: "admin" }, headers })
+  await auth.api.setRole({ body: { userId: created.user.id, role: "user" }, headers })
+
+  expect(await roleOf("colleague@example.test")).toBe("user")
+})
+
+// The dropdown is absent on the admin's own row, but the endpoint is reachable
+// without it. Left open, an admin could demote the deck's only admin.
+test("an admin cannot change their own role", async () => {
+  const auth = await getAuth()
+  const { id, cookie } = await bootstrapAdmin()
+
+  await expect(
+    auth.api.setRole({ body: { userId: id, role: "user" }, headers: new Headers({ cookie }) }),
+  ).rejects.toThrow(/own role/i)
+
+  expect(await roleOf(operator.email)).toBe("admin")
+})
+
+// mapOidcProfile decides the role from the Keycloak group and overrideUserInfo
+// re-decides at every sign-in, so a hand-set role would silently revert.
+test("an admin cannot set the role of an OIDC-linked account", async () => {
+  const auth = await getAuth()
+  const { cookie } = await bootstrapAdmin()
+  const created = await auth.api.createUser({
+    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
+    headers: new Headers({ cookie }),
+  })
+
+  const db = await getDb()
+  const now = new Date()
+  await db.insert(account).values({
+    id: "acc-oidc",
+    accountId: "kc-subject",
+    providerId: "oidc",
+    userId: created.user.id,
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  await expect(
+    auth.api.setRole({
+      body: { userId: created.user.id, role: "admin" },
+      headers: new Headers({ cookie }),
+    }),
+  ).rejects.toThrow(/OIDC_ADMIN_GROUP|deck-admin/)
+
+  expect(await roleOf("colleague@example.test")).toBe("user")
 })
