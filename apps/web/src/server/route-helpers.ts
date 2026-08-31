@@ -65,21 +65,42 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<unknown>) {
   }
 }
 
+/** Resolves the caller's session or throws 401. Shared by both wrappers. */
+async function requireSession(req: Request): Promise<{ id: string; role?: string | null }> {
+  const { getAuth } = await import("./auth")
+  const auth = await getAuth()
+  const result = await auth.api.getSession({ headers: req.headers })
+
+  if (!result?.user) {
+    throw new HttpError(401, "UNAUTHENTICATED", "Sign in to continue")
+  }
+  return result.user
+}
+
 /**
  * Same as `handler`, but resolves the caller's session first and rejects with
  * 401 when there is none. Every node route uses this — a route that forgets it
  * would expose another user's node credentials, so the guard is the wrapper
  * rather than a line inside each handler.
  */
-export function authed<Ctx>(fn: (req: Request, ctx: Ctx, userId: string) => Promise<unknown>) {
-  return handler<Ctx>(async (req, ctx) => {
-    const { getAuth } = await import("./auth")
-    const auth = await getAuth()
-    const result = await auth.api.getSession({ headers: req.headers })
+export function authed<Ctx>(fn: (req: Request, ctx: Ctx, ownerId: string) => Promise<unknown>) {
+  return handler<Ctx>(async (req, ctx) => fn(req, ctx, (await requireSession(req)).id))
+}
 
-    if (!result?.user) {
-      throw new HttpError(401, "UNAUTHENTICATED", "Sign in to continue")
+/**
+ * Same again, and additionally requires the admin role.
+ *
+ * 403 here where the node routes answer 404: those hide whether another
+ * account's node exists, which is a fact worth withholding. These routes hide
+ * nothing — the caller already knows the admin area is there — so the honest
+ * answer is that they are not an admin.
+ */
+export function adminOnly<Ctx>(fn: (req: Request, ctx: Ctx, ownerId: string) => Promise<unknown>) {
+  return handler<Ctx>(async (req, ctx) => {
+    const user = await requireSession(req)
+    if (user.role !== "admin") {
+      throw new HttpError(403, "FORBIDDEN", "Only an admin can do this")
     }
-    return fn(req, ctx, result.user.id)
+    return fn(req, ctx, user.id)
   })
 }
