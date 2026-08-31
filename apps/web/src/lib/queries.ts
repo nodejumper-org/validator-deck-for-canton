@@ -5,12 +5,14 @@ import { toast } from "sonner"
 import { api, ApiError } from "./api"
 import { authClient } from "./auth-client"
 import type {
+  AdminAccount,
   DarUploadResult,
   FleetHealth,
   LedgerUser,
   LocalScanState,
   Network,
   NetworkDashboard,
+  NodeAccessRow,
   NodeOverview,
   NodeSummary,
   PackagesResult,
@@ -38,6 +40,7 @@ export const queryKeys = {
   dashboardHealth: () => ["dashboard", "health"] as const,
   dashboardNetwork: (network: Network) => ["dashboard", "network", network] as const,
   accounts: () => ["accounts"] as const,
+  nodeAccess: () => ["node-access"] as const,
 }
 
 export function useNodes() {
@@ -334,25 +337,17 @@ export function useFleetHealth() {
 // App accounts (the admin plugin's "users") — NOT Canton ledger users, which
 // are what `users(nodeId)` above refers to.
 
-export type Account = {
-  id: string
-  name: string
-  email: string
-  role: string
-  banned: boolean
-  createdAt: Date | string
-}
+export type Account = AdminAccount
 
+/**
+ * Served by our own route rather than authClient.admin.listUsers: the page has
+ * to know which accounts are OIDC-linked, and the plugin's listing does not
+ * carry that. The mutations below stay on the admin client.
+ */
 export function useAccounts() {
   return useQuery({
     queryKey: queryKeys.accounts(),
-    queryFn: async () => {
-      const { data, error } = await authClient.admin.listUsers({
-        query: { limit: 500, sortBy: "createdAt", sortDirection: "asc" },
-      })
-      if (error) throw new Error(error.message ?? "Failed to list accounts")
-      return data.users as Account[]
-    },
+    queryFn: () => api<{ accounts: Account[] }>("/api/admin/accounts").then((r) => r.accounts),
   })
 }
 
@@ -397,6 +392,38 @@ export function useUnbanAccount() {
   return useAccountMutation(
     (input: { userId: string }) => authClient.admin.unbanUser(input),
     "unban",
+  )
+}
+
+/** Every node in the deck with its owner and grantees. Admin page only. */
+export function useNodeAccess() {
+  return useQuery({
+    queryKey: queryKeys.nodeAccess(),
+    queryFn: () => api<{ nodes: NodeAccessRow[] }>("/api/admin/node-access").then((r) => r.nodes),
+  })
+}
+
+export function useSetNodeAccess() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { nodeId: string; userIds: string[] }) =>
+      api<{ node: NodeAccessRow }>(`/api/admin/node-access/${input.nodeId}`, {
+        method: "PUT",
+        body: JSON.stringify({ userIds: input.userIds }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.nodeAccess() })
+      // A grant changes what the granted account's own node list returns.
+      void qc.invalidateQueries({ queryKey: queryKeys.nodes() })
+    },
+    onError: (e: ApiError) => toast.error(e.message),
+  })
+}
+
+export function useSetAccountRole() {
+  return useAccountMutation(
+    (input: { userId: string; role: "admin" | "user" }) => authClient.admin.setRole(input),
+    "update the role of",
   )
 }
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, expect, test } from "vitest"
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest"
 import { getAuth, resetAuthForTests } from "./auth"
 import { resetDbForTests } from "./db"
 
@@ -6,6 +6,12 @@ beforeAll(() => {
   process.env.APP_SECRET = "d".repeat(64)
   process.env.DATABASE_URL = "pglite://memory"
 })
+
+// better-auth hashes passwords with scrypt and each of these tests migrates its
+// own in-process Postgres. Three such files run in parallel, so the first test
+// in each routinely needs more than vitest's 5s default — a timeout here means
+// the machine was busy, not that anything hung.
+vi.setConfig({ testTimeout: 30000 })
 
 beforeEach(() => {
   resetDbForTests()

@@ -22,6 +22,13 @@
       "when": 1786529904423,
       "tag": "0002_marvelous_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788196880982,
+      "tag": "0003_nice_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

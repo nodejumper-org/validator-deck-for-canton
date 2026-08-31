@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { APIError, createAuthMiddleware } from "better-auth/api"
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api"
 import { admin, genericOAuth } from "better-auth/plugins"
 import { BRAND } from "@/lib/brand"
-import { anyAccountExists, roleForNewUser } from "./accounts"
+import { anyAccountExists, hasOidcAccount, roleForNewUser } from "./accounts"
 import { getDb } from "./db"
 import { mapOidcProfile, OIDC_PROVIDER_ID, oidcConfigFromEnv } from "./oidc"
 import * as schema from "./schema"
@@ -74,6 +74,40 @@ async function build() {
           throw new APIError("FORBIDDEN", {
             message: "Sign-up is closed. Ask the operator for an account.",
           })
+        }
+
+        // The admin plugin is happy to write any role onto any account. Two
+        // writes it would accept are ones we cannot honour:
+        //
+        //   - the caller's own row, because the page hides that action but the
+        //     endpoint does not, and an admin demoting themselves can leave the
+        //     deck with no admin at all; and
+        //   - an account linked to the identity provider, because its role
+        //     comes from the Keycloak group and `overrideUserInfo: true`
+        //     re-decides it at every sign-in, so the change would revert
+        //     without ever reporting that it had.
+        if (ctx.path === "/admin/set-role") {
+          const targetId = (ctx.body as { userId?: string } | undefined)?.userId
+          // Returns `{ session, user } | null`, so this holds both — naming it
+          // `session` would read as the session alone. A global before-hook runs
+          // ahead of the endpoint's own adminMiddleware, so ctx.context.session
+          // is not populated yet and this is the way to the caller.
+          const caller = await getSessionFromCtx(ctx)
+
+          if (targetId && caller?.user.id === targetId) {
+            throw new APIError("BAD_REQUEST", {
+              message: "You cannot change your own role. Ask another admin.",
+            })
+          }
+
+          if (targetId && (await hasOidcAccount(targetId))) {
+            throw new APIError("BAD_REQUEST", {
+              message:
+                "This account signs in through the identity provider, where its " +
+                `${oidc?.adminGroup ?? "deck-admin"} group decides the role. ` +
+                "Change the group in Keycloak instead.",
+            })
+          }
         }
       }),
     },
