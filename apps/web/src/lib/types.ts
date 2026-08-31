@@ -24,6 +24,23 @@ export type NodeSummary = {
   updatedAt: string
 }
 
+/** An app account as the admin surfaces name it. Never a Canton ledger user. */
+export type AccountRef = {
+  id: string
+  name: string
+  email: string
+}
+
+/** One node in the deck as the admin's access table sees it. */
+export type NodeAccessRow = {
+  id: string
+  name: string
+  network: Network
+  owner: AccountRef
+  /** Accounts granted the node, never including the owner. */
+  grantees: AccountRef[]
+}
+
 export type Probe = { ok: boolean; detail: string; latencyMs: number }
 
 export type TestResult = {
