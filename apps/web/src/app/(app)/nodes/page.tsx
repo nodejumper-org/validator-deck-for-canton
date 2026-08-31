@@ -1,13 +1,15 @@
 "use client"
 
-import { MoreHorizontal, Pencil, Plug, Trash2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 import { PageHeader } from "@/components/app-shell"
 import { Copyable } from "@/components/copyable"
 import { DataPanel, EmptyState } from "@/components/data-panel"
 import { DeleteNodeDialog } from "@/components/delete-node-dialog"
 import { NetworkBadge } from "@/components/network-badge"
 import { NodeFormDialog } from "@/components/node-form-dialog"
+import { SortableHead } from "@/components/sortable-head"
 import { StatusDot } from "@/components/status-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,46 +18,59 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useNodes, useTestNode } from "@/lib/queries"
-import type { NodeSummary, TestResult } from "@/lib/types"
+import { formatDuration } from "@/lib/format"
+import { DEFAULT_NODE_SORT, nextSort, type NodeSort, type NodeSortKey, sortNodes } from "@/lib/node-sort"
+import { useFleetHealth, useNodes } from "@/lib/queries"
+import type { NodeHealth } from "@/lib/types"
 
-function TestCell({ node }: { node: NodeSummary }) {
-  const test = useTestNode()
-  const result = test.data as TestResult | undefined
-  const isThisNode = test.variables === node.id
-
-  if (test.isPending && isThisNode) {
-    return <span className="text-muted-foreground text-[12px]">Testing…</span>
-  }
-
-  if (result && isThisNode) {
-    return (
-      <div className="space-y-1">
-        <StatusDot ok={result.ledger.ok} className="text-[12px]">
-          <span className="ident">{result.ledger.detail}</span>
-          <span className="text-muted-foreground ml-1.5">{result.ledger.latencyMs} ms</span>
-        </StatusDot>
-        {result.validator ? (
-          <StatusDot ok={result.validator.ok} className="text-[12px]">
-            <span className="ident">{result.validator.detail}</span>
-            <span className="text-muted-foreground ml-1.5">{result.validator.latencyMs} ms</span>
-          </StatusDot>
-        ) : null}
-      </div>
+/**
+ * Reachability for one row, from the fleet probe the dashboard already runs.
+ *
+ * No button: the check happens on load, and because both pages read the same
+ * `["dashboard", "health"]` query, arriving here from the dashboard costs no
+ * request at all. The trade against the old per-node Test call is one latency
+ * figure for the node instead of one per surface.
+ */
+function ConnectionCell({ health, pending }: { health?: NodeHealth; pending: boolean }) {
+  if (!health) {
+    return pending ? (
+      <Skeleton className="h-4 w-28" />
+    ) : (
+      <span className="text-muted-foreground text-[12px]">Not checked</span>
     )
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={() => test.mutate(node.id)}>
-      <Plug className="size-3.5" />
-      Test
-    </Button>
+    <div className="space-y-1">
+      <StatusDot ok={health.ledgerOk} className="text-[12px]">
+        <span className="ident">{health.ledgerVersion ?? (health.ledgerOk ? "Up" : "Down")}</span>
+        <span className="text-muted-foreground ml-1.5">{formatDuration(health.latencyMs)}</span>
+      </StatusDot>
+      {health.validatorOk === null ? null : (
+        <StatusDot ok={health.validatorOk} className="text-[12px]">
+          <span className="ident">
+            {health.validatorVersion ?? (health.validatorOk ? "Up" : "Down")}
+          </span>
+        </StatusDot>
+      )}
+      {health.error ? (
+        <span className="ident text-bad block truncate text-[12px]">{health.error}</span>
+      ) : null}
+    </div>
   )
 }
 
 export default function NodesPage() {
   const { data: nodes, isLoading, error } = useNodes()
+  const { data: health, isPending: healthPending } = useFleetHealth()
+  const healthById = new Map((health ?? []).map((h) => [h.id, h]))
+  // The same comparator and default the dashboard's health table uses, so the
+  // two lists of nodes never disagree about what sorted means.
+  const [sort, setSort] = useState<NodeSort>(DEFAULT_NODE_SORT)
+  const toggle = (key: NodeSortKey) => setSort((s) => nextSort(s, key))
+  const rows = sortNodes(nodes ?? [], sort)
 
   const addButton = (
     <NodeFormDialog
@@ -68,7 +83,7 @@ export default function NodesPage() {
     <>
       <PageHeader
         title="Nodes"
-        description="Participant and validator nodes this console can operate."
+        description="Participant and validator nodes this console can operate. Checked when this page loaded."
         actions={addButton}
       />
 
@@ -90,8 +105,12 @@ export default function NodesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[18%]">Name</TableHead>
-                    <TableHead className="w-[8%]">Network</TableHead>
+                    <SortableHead column="name" sort={sort} onSort={toggle} className="w-[18%]">
+                      Name
+                    </SortableHead>
+                    <SortableHead column="network" sort={sort} onSort={toggle} className="w-[8%]">
+                      Network
+                    </SortableHead>
                     <TableHead className="w-[30%]">Ledger API</TableHead>
                     <TableHead className="w-[14%]">Validator</TableHead>
                     <TableHead className="w-[26%]">Connection</TableHead>
@@ -99,7 +118,7 @@ export default function NodesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nodes.map((node) => (
+                  {rows.map((node) => (
                     <TableRow key={node.id}>
                       <TableCell>
                         <Link
@@ -123,7 +142,10 @@ export default function NodesPage() {
                         </StatusDot>
                       </TableCell>
                       <TableCell>
-                        <TestCell node={node} />
+                        <ConnectionCell
+                          health={healthById.get(node.id)}
+                          pending={healthPending}
+                        />
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

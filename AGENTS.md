@@ -21,10 +21,23 @@ is the only path a node takes outward and it drops the sealed secret and the
 owner id. A compile-time assertion ties `PublicNode` to the wire type in
 `src/lib/types.ts`.
 
-**Every node route uses `authed()`, never `handler()`.** The wrapper resolves the
-session and passes `ownerId` in; a route that used `handler()` would expose other
-users' node credentials. Registry functions all take an owner and scope their
-queries by it, so an id belonging to someone else reads as not found.
+**Every node route uses `authed()`, never `handler()`; admin routes use
+`adminOnly()`.** The wrapper resolves the session and passes `ownerId` in; a
+route that used `handler()` would expose other users' node credentials.
+`adminOnly()` additionally requires the admin role and answers 403 — node routes
+answer 404 instead, because whether someone else's node exists is not ours to
+disclose, and an admin route has nothing to withhold.
+
+**A node is reachable by its owner or by an account granted it.** `reachableBy`
+in `src/server/nodes.ts` is the whole rule and the only place `node_access` is
+read for authorization; `listNodes`, `getNode`, `updateNode` and `deleteNode`
+share it, and everything else — `client.ts`, `health.ts`, `local-parties.ts`, the
+dashboard routes — reaches nodes only through those four, so it widens with them.
+Keep it that way: a second copy of the predicate is a second thing to get wrong.
+A grant is **full co-ownership** — the grantee can rotate credentials and delete
+the node for everyone, including its owner. `nodes.userId` still records who
+registered it and anchors the cascade. Grants are written only by
+`src/server/node-access.ts`, admin-only, and never for the owner.
 
 **Watch the `ownerId` / `userId` distinction.** In the ledger-user routes the
 path param is also called `userId` — that is the *Canton* user. The signed-in
@@ -33,23 +46,15 @@ account is always `ownerId`.
 **The first account is the admin and sign-up dies with it.** `anyAccountExists`
 in `src/server/accounts.ts` closes `/sign-up/email` via a before-hook the
 moment one user row exists; a database hook hands `role: "admin"` to that
-first row only. Account management is the admin-only `/accounts` page (the
-better-auth admin plugin — its endpoints re-check the role, the page gate is
-UX). "Accounts" is deliberate: "Users" means Canton ledger users everywhere
-else in this app.
-
-**SSO is optional, and the group is the gate.** With `OIDC_ISSUER` unset the
-provider is never registered and the deck behaves exactly as it did before
-v0.3.0. Configured, `src/server/oidc.ts` admits only members of
-`OIDC_ADMIN_GROUP` (default `deck-admin`) and gives them `role: "admin"`,
-deciding again at every sign-in — the realm behind the provider also holds
-customers' wallet users, so realm membership is not evidence of being an
-operator. `providerId` is the literal `oidc` and is stored in
-`account.providerId`: renaming it orphans every existing link. `roleForNewUser`
-in `src/server/accounts.ts` is what keeps the two role sources apart —
-registration order for password accounts, the group for OIDC ones — and it
-honours only `admin` from upstream, because the admin plugin stamps its default
-`user` on every new row.
+first row only. After that, admins are made by admins: the admin-only
+`/accounts` page calls the better-auth admin plugin's `setRole` (its endpoints
+re-check the role, the page gate is UX). One role change is refused in the
+`hooks.before` middleware in `src/server/auth.ts`: the caller's own row, so an
+admin cannot leave the deck admin-less. `roleForNewUser` takes no incoming role
+on purpose — the admin plugin stamps its default onto every new row, so
+honouring what arrives would hand the very first sign-up a plain account.
+"Accounts" is deliberate: "Users" means Canton ledger users everywhere else in
+this app.
 
 **`src/proxy.ts` is not the security boundary.** It only checks that a session
 cookie exists, because it runs before render where the database is unreachable.

@@ -1,15 +1,21 @@
 import { eq } from "drizzle-orm"
-import { beforeAll, beforeEach, expect, test } from "vitest"
+import { beforeAll, beforeEach, expect, test, vi } from "vitest"
 import { anyAccountExists, roleForNewUser } from "./accounts"
 import { getAuth, resetAuthForTests } from "./auth"
 import { getDb, resetDbForTests } from "./db"
-import { user } from "./schema"
+import { account, user } from "./schema"
 import { createTestUser } from "./test-support"
 
 beforeAll(() => {
   process.env.APP_SECRET = "d".repeat(64)
   process.env.DATABASE_URL = "pglite://memory"
 })
+
+// better-auth hashes passwords with scrypt and each of these tests migrates its
+// own in-process Postgres. Three such files run in parallel, so the first test
+// in each routinely needs more than vitest's 5s default — a timeout here means
+// the machine was busy, not that anything hung.
+vi.setConfig({ testTimeout: 30000 })
 
 // resetAuthForTests must join resetDbForTests — the auth instance memoises its
 // Drizzle handle, so a stale instance would point at the previous test's
@@ -94,22 +100,66 @@ test("a plain user cannot create accounts", async () => {
 })
 
 test("the first password account is still the admin", async () => {
-  expect(await roleForNewUser({})).toBe("admin")
+  expect(await roleForNewUser()).toBe("admin")
 })
 
 test("a later password account is still a plain user", async () => {
   await createTestUser("first@example.test")
-  expect(await roleForNewUser({})).toBe("user")
+  expect(await roleForNewUser()).toBe("user")
 })
 
-test("a role decided upstream survives registration order", async () => {
-  await createTestUser("first@example.test")
-  expect(await roleForNewUser({ role: "admin" })).toBe("admin")
+// ------------------------------------------------------------- role changes
+
+/** Signs the bootstrap admin up and returns their id and session cookie. */
+async function bootstrapAdmin(): Promise<{ id: string; cookie: string }> {
+  const auth = await getAuth()
+  const { response, headers } = await auth.api.signUpEmail({
+    body: operator,
+    returnHeaders: true,
+  })
+  return { id: response.user.id, cookie: headers.get("set-cookie") ?? "" }
+}
+
+test("an admin promotes another account", async () => {
+  const auth = await getAuth()
+  const { cookie } = await bootstrapAdmin()
+  const created = await auth.api.createUser({
+    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
+    headers: new Headers({ cookie }),
+  })
+
+  await auth.api.setRole({
+    body: { userId: created.user.id, role: "admin" },
+    headers: new Headers({ cookie }),
+  })
+
+  expect(await roleOf("colleague@example.test")).toBe("admin")
 })
 
-// The admin plugin stamps its default role on every new row, so `user` on an
-// incoming record proves nothing about who decided it. Treating it as a
-// decision left the very first sign-up a plain account and the deck admin-less.
-test("a defaulted user role does not outrank registration order", async () => {
-  expect(await roleForNewUser({ role: "user" })).toBe("admin")
+test("an admin demotes another admin back to a plain account", async () => {
+  const auth = await getAuth()
+  const { cookie } = await bootstrapAdmin()
+  const created = await auth.api.createUser({
+    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
+    headers: new Headers({ cookie }),
+  })
+  const headers = new Headers({ cookie })
+
+  await auth.api.setRole({ body: { userId: created.user.id, role: "admin" }, headers })
+  await auth.api.setRole({ body: { userId: created.user.id, role: "user" }, headers })
+
+  expect(await roleOf("colleague@example.test")).toBe("user")
+})
+
+// The dropdown is absent on the admin's own row, but the endpoint is reachable
+// without it. Left open, an admin could demote the deck's only admin.
+test("an admin cannot change their own role", async () => {
+  const auth = await getAuth()
+  const { id, cookie } = await bootstrapAdmin()
+
+  await expect(
+    auth.api.setRole({ body: { userId: id, role: "user" }, headers: new Headers({ cookie }) }),
+  ).rejects.toThrow(/own role/i)
+
+  expect(await roleOf(operator.email)).toBe("admin")
 })

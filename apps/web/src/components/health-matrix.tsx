@@ -1,42 +1,36 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { DataPanel, EmptyState } from "@/components/data-panel"
 import { NetworkBadge } from "@/components/network-badge"
+import { SortableHead } from "@/components/sortable-head"
 import { StatusDot } from "@/components/status-dot"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatCount, formatDuration } from "@/lib/format"
-import { NETWORK_ORDER } from "@/lib/networks"
-import type { Network, NodeHealth } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { DEFAULT_NODE_SORT, nextSort, type NodeSort, type NodeSortKey, sortNodes } from "@/lib/node-sort"
+import type { NodeHealth } from "@/lib/types"
 
 export function HealthMatrix({
   nodes,
-  selectedNetwork,
   isLoading,
   error,
 }: {
   nodes: NodeHealth[]
-  /** Rows outside the selected network stay visible, but dimmed: the table is
-      the fleet view, while everything below it is scoped to one network. */
-  selectedNetwork?: Network | null
   isLoading?: boolean
   error?: { message: string } | null
 }) {
   const router = useRouter()
-
-  // Canonical network order, so the dimmed rows group into blocks instead of
+  // Canonical network order by default, so rows group by network instead of
   // scattering through the table.
-  const rows = [...nodes].sort(
-    (a, b) =>
-      NETWORK_ORDER.indexOf(a.network) - NETWORK_ORDER.indexOf(b.network) ||
-      a.name.localeCompare(b.name),
-  )
+  const [sort, setSort] = useState<NodeSort>(DEFAULT_NODE_SORT)
+  const rows = sortNodes(nodes, sort)
+  const toggle = (key: NodeSortKey) => setSort((s) => nextSort(s, key))
 
   return (
     <DataPanel
       title="Node health"
-      description="Every registered node, in every network. Checked when this page loaded."
+      description="Every registered node, in every network. Checked when this page loaded. Sort by node or network."
       isLoading={isLoading}
       error={error}
       flush
@@ -48,8 +42,12 @@ export function HealthMatrix({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[22%]">Node</TableHead>
-                <TableHead className="w-[10%]">Network</TableHead>
+                <SortableHead column="name" sort={sort} onSort={toggle} className="w-[22%]">
+                  Node
+                </SortableHead>
+                <SortableHead column="network" sort={sort} onSort={toggle} className="w-[10%]">
+                  Network
+                </SortableHead>
                 <TableHead className="w-[14%]">Ledger</TableHead>
                 <TableHead className="w-[14%]">Validator</TableHead>
                 <TableHead className="w-[14%]">Synchronizer</TableHead>
@@ -62,13 +60,7 @@ export function HealthMatrix({
                 <TableRow
                   key={n.id}
                   onClick={() => router.push(`/nodes/${n.id}`)}
-                  className={cn(
-                    "hover:bg-muted/40 cursor-pointer",
-                    // 70, not 50: two thirds of a three-network operator's table is
-                    // dimmed, and at 50% the node name and the 12px latency cell
-                    // fall below AA. This still reads as secondary.
-                    selectedNetwork && n.network !== selectedNetwork && "opacity-70",
-                  )}
+                  className="hover:bg-muted/40 cursor-pointer"
                 >
                   <TableCell>
                     <span className="font-medium">{n.name}</span>

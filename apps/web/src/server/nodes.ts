@@ -1,12 +1,13 @@
 import { clearTokenCache } from "@validator-deck/canton-client"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, or } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { z } from "zod"
 import type { NodeSummary } from "@/lib/types"
 import { seal } from "./crypto"
+import type { DrizzleDb } from "./db"
 import { getDb } from "./db"
 import { HttpError } from "./route-helpers"
-import { nodes, type NodeRecord } from "./schema"
+import { nodeAccess, nodes, type NodeRecord } from "./schema"
 
 /** Accepts a URL or an empty string, normalising "" to undefined. */
 const optionalUrl = z
@@ -68,17 +69,39 @@ const _publicNodeMatchesWireType: NodeSummary = null as unknown as PublicNode
 void _publicNodeMatchesWireType
 
 /**
- * Every read and write is scoped by `userId`. A node id alone is never enough to
- * reach a node: an id belonging to someone else simply reads as not found, which
- * is also why callers get 404 rather than 403 — the existence of another user's
- * node is not ours to disclose.
+ * The entitlement rule, in one place.
+ *
+ * A node is reachable by the account that registered it, or by one an admin
+ * granted it to. Every scoped read and write goes through this, which is what
+ * keeps "an id belonging to someone else reads as not found" a property of the
+ * module rather than a habit at each call site — and what makes widening access
+ * a one-line review.
+ *
+ * Takes the handle rather than closing over one: getDb() is async and every
+ * caller has already awaited it.
+ */
+function reachableBy(db: DrizzleDb, userId: string) {
+  return or(
+    eq(nodes.userId, userId),
+    inArray(
+      nodes.id,
+      db.select({ id: nodeAccess.nodeId }).from(nodeAccess).where(eq(nodeAccess.userId, userId)),
+    ),
+  )
+}
+
+/**
+ * Every read and write is scoped by `reachableBy`. A node id alone is never
+ * enough to reach a node: an id nobody granted the caller simply reads as not
+ * found, which is also why callers get 404 rather than 403 — the existence of
+ * another account's node is not ours to disclose.
  */
 export async function listNodes(userId: string): Promise<PublicNode[]> {
   const db = await getDb()
   const rows = await db
     .select()
     .from(nodes)
-    .where(eq(nodes.userId, userId))
+    .where(reachableBy(db, userId))
     .orderBy(nodes.createdAt)
   return rows.map(toPublic)
 }
@@ -88,7 +111,7 @@ export async function getNode(id: string, userId: string): Promise<NodeRecord | 
   const [row] = await db
     .select()
     .from(nodes)
-    .where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
+    .where(and(eq(nodes.id, id), reachableBy(db, userId)))
     .limit(1)
   return row
 }
@@ -149,7 +172,7 @@ export async function updateNode(
   const [row] = await db
     .update(nodes)
     .set(patch)
-    .where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
+    .where(and(eq(nodes.id, id), reachableBy(db, userId)))
     .returning()
   if (!row) throw new HttpError(404, "NODE_NOT_FOUND", `No node registered with id ${id}`)
 
@@ -162,6 +185,6 @@ export async function updateNode(
 
 export async function deleteNode(id: string, userId: string): Promise<void> {
   const db = await getDb()
-  await db.delete(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
+  await db.delete(nodes).where(and(eq(nodes.id, id), reachableBy(db, userId)))
   clearTokenCache(id)
 }

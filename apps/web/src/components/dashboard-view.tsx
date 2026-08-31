@@ -80,7 +80,6 @@ export function DashboardView() {
       <div className="space-y-5 p-5">
         <HealthMatrix
           nodes={health ?? []}
-          selectedNetwork={network}
           isLoading={healthLoading}
           error={healthError as { message: string } | null}
         />
