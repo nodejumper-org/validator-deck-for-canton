@@ -24,13 +24,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useSession } from "@/lib/auth-client"
-import { type Account, useAccounts, useBanAccount, useUnbanAccount } from "@/lib/queries"
+import {
+  type Account,
+  useAccounts,
+  useBanAccount,
+  useSetAccountRole,
+  useUnbanAccount,
+} from "@/lib/queries"
 
 export function AccountsView() {
   const { data: accounts, isPending } = useAccounts()
   const { data: session } = useSession()
   const ban = useBanAccount()
   const unban = useUnbanAccount()
+  const setRole = useSetAccountRole()
   const [createOpen, setCreateOpen] = useState(false)
   const [passwordFor, setPasswordFor] = useState<Account | null>(null)
   const [deleteFor, setDeleteFor] = useState<Account | null>(null)
@@ -39,7 +46,7 @@ export function AccountsView() {
     <div>
       <PageHeader
         title="Accounts"
-        description="Who can sign in. Each account sees only its own nodes."
+        description="Who can sign in, who is an admin, and which nodes each account can reach."
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <UserPlus className="size-4" aria-hidden />
@@ -65,6 +72,13 @@ export function AccountsView() {
             <TableBody>
               {(accounts ?? []).map((account) => {
                 const self = account.id === session?.user.id
+                const isAdmin = account.role === "admin"
+                // The role of an account that signs in through the provider is
+                // decided by its Keycloak group and re-decided at every
+                // sign-in, so offering the action here would be offering one
+                // that silently reverts. The route refuses it too; this is the
+                // half the operator can see.
+                const roleIsUpstream = account.providers.includes("oidc")
                 return (
                   <TableRow key={account.id}>
                     <TableCell className="font-medium">
@@ -95,6 +109,22 @@ export function AccountsView() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {roleIsUpstream ? (
+                              <DropdownMenuItem disabled>
+                                Role set by identity provider
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  setRole.mutate({
+                                    userId: account.id,
+                                    role: isAdmin ? "user" : "admin",
+                                  })
+                                }
+                              >
+                                {isAdmin ? "Revoke admin" : "Make admin"}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onSelect={() => setPasswordFor(account)}>
                               Set password
                             </DropdownMenuItem>
