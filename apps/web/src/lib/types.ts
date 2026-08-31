@@ -31,6 +31,21 @@ export type AccountRef = {
   email: string
 }
 
+/**
+ * An app account as the Accounts page reads it. `providers` is what the page
+ * cannot get from better-auth's own listUsers, and is what tells it which
+ * accounts have their role decided in Keycloak rather than here.
+ */
+export type AdminAccount = {
+  id: string
+  name: string
+  email: string
+  role: string
+  banned: boolean
+  createdAt: string
+  providers: string[]
+}
+
 /** One node in the deck as the admin's access table sees it. */
 export type NodeAccessRow = {
   id: string

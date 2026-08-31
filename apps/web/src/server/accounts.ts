@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm"
+import type { AdminAccount } from "@/lib/types"
 import { getDb } from "./db"
 import { OIDC_PROVIDER_ID } from "./oidc"
 import { account, user } from "./schema"
@@ -49,4 +50,44 @@ export async function hasOidcAccount(userId: string): Promise<boolean> {
     .where(and(eq(account.userId, userId), eq(account.providerId, OIDC_PROVIDER_ID)))
     .limit(1)
   return rows.length > 0
+}
+
+/**
+ * Every account, with the providers it signs in through.
+ *
+ * Unpaginated, as the better-auth call it replaces effectively was with its
+ * limit of 500. A deck has operators, not users at scale; if that stops being
+ * true this is the one route to page.
+ */
+export async function listAccounts(): Promise<AdminAccount[]> {
+  const db = await getDb()
+
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      banned: user.banned,
+      createdAt: user.createdAt,
+    })
+    .from(user)
+    .orderBy(user.createdAt)
+
+  const links = await db
+    .select({ userId: account.userId, providerId: account.providerId })
+    .from(account)
+
+  const byUser = new Map<string, Set<string>>()
+  for (const l of links) {
+    const set = byUser.get(l.userId) ?? new Set<string>()
+    set.add(l.providerId)
+    byUser.set(l.userId, set)
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    providers: [...(byUser.get(r.id) ?? [])].sort(),
+  }))
 }
