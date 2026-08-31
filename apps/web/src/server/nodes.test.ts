@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm"
 import { beforeAll, beforeEach, expect, test } from "vitest"
 import { open } from "./crypto"
-import { resetDbForTests } from "./db"
+import { getDb, resetDbForTests } from "./db"
 import { HttpError } from "./route-helpers"
-import { createTestUser } from "./test-support"
+import { nodeAccess, user } from "./schema"
+import { createTestUser, grantTestAccess, revokeTestAccess } from "./test-support"
 import {
   createNode,
   deleteNode,
@@ -164,6 +166,76 @@ test("listNodes returns only the caller's nodes", async () => {
 
 test("the owner id never reaches the wire type", async () => {
   const node = await createNode(input, owner)
+  expect(node).not.toHaveProperty("userId")
+  expect(JSON.stringify(node)).not.toContain(owner)
+})
+
+// ------------------------------------------------------------- shared access
+
+test("a grantee sees a node they do not own", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+
+  expect(await getNode(created.id, other)).toBeDefined()
+  expect(await getPublicNode(created.id, other)).toBeDefined()
+  expect((await listNodes(other)).map((n) => n.name)).toEqual(["devnet-1"])
+})
+
+test("a grantee can update and delete the node, and the owner loses it", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+
+  const updated = await updateNode(created.id, { name: "renamed by grantee" }, other)
+  expect(updated.name).toBe("renamed by grantee")
+
+  await deleteNode(created.id, other)
+  expect(await getNode(created.id, owner)).toBeUndefined()
+})
+
+test("a revoked grantee is back to seeing nothing", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+  await revokeTestAccess(created.id, other)
+
+  expect(await getNode(created.id, other)).toBeUndefined()
+  expect(await listNodes(other)).toEqual([])
+})
+
+test("listNodes returns owned and granted nodes together, without duplicates", async () => {
+  const mine = await createNode({ ...input, name: "mine" }, other)
+  const theirs = await createNode({ ...input, name: "theirs" }, owner)
+  await grantTestAccess(theirs.id, other)
+  // A grant to the owner would be redundant; the predicate must not double-count.
+  await grantTestAccess(mine.id, other)
+
+  expect((await listNodes(other)).map((n) => n.name).sort()).toEqual(["mine", "theirs"])
+})
+
+test("deleting the node removes its grants", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+  await deleteNode(created.id, owner)
+
+  const db = await getDb()
+  expect(await db.select().from(nodeAccess)).toEqual([])
+})
+
+test("deleting the granted account removes its grants but keeps the node", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+
+  const db = await getDb()
+  await db.delete(user).where(eq(user.id, other))
+
+  expect(await db.select().from(nodeAccess)).toEqual([])
+  expect(await getNode(created.id, owner)).toBeDefined()
+})
+
+test("a grant never leaks the owner id to the wire type", async () => {
+  const created = await createNode(input, owner)
+  await grantTestAccess(created.id, other)
+
+  const node = (await getPublicNode(created.id, other))!
   expect(node).not.toHaveProperty("userId")
   expect(JSON.stringify(node)).not.toContain(owner)
 })

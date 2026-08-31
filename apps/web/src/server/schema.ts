@@ -82,8 +82,10 @@ export const networkEnum = pgEnum("network", ["devnet", "testnet", "mainnet", "l
  * with no `validatorApiUrl` is a plain participant and its validator pages are
  * hidden.
  *
- * Every node belongs to exactly one user. Deleting the user removes their nodes
- * and, by cascade, everything scanned from them.
+ * `userId` is the account that registered the node. It is not the only account
+ * that can reach it — an admin can grant a node to others through `nodeAccess`
+ * — but it is the one the row hangs off: deleting that account removes their
+ * nodes and, by cascade, everything scanned from them.
  */
 export const nodes = pgTable(
   "nodes",
@@ -109,6 +111,35 @@ export const nodes = pgTable(
 )
 
 export type NodeRecord = typeof nodes.$inferSelect
+
+/**
+ * Accounts an admin has granted a node to, beyond its owner.
+ *
+ * A grant is full co-ownership: the grantee can edit the registration and
+ * delete the node for everyone. The rule lives in `reachableBy` in nodes.ts,
+ * which is the only place this table is read for authorization.
+ *
+ * The owner is never stored here — a row for them would be redundant, and
+ * `setNodeAccess` filters their id out of every write.
+ */
+export const nodeAccess = pgTable(
+  "node_access",
+  {
+    nodeId: text("node_id")
+      .notNull()
+      .references(() => nodes.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.nodeId, t.userId] }),
+    index("node_access_user_id_idx").on(t.userId),
+  ],
+)
+
+export type NodeAccessRecord = typeof nodeAccess.$inferSelect
 
 // -------------------------------------------------------------- local parties
 
