@@ -43,27 +43,6 @@ nothing to configure.
 it the app refuses to store or read credentials. `BETTER_AUTH_SECRET` signs
 session cookies; it falls back to `APP_SECRET` if unset.
 
-## Signing in through an identity provider
-
-Optional, and off unless configured. Set `OIDC_ISSUER` to a realm root — say
-`https://keycloak.example.com/realms/ftp` — together with `OIDC_CLIENT_ID` and
-`OIDC_CLIENT_SECRET`, and the sign-in page grows a second button. Leave the
-issuer empty and nothing changes: no provider is registered and the deck stays
-email and password only. A half-filled block is a startup error rather than a
-button that cannot work.
-
-`OIDC_ADMIN_GROUP` (default `deck-admin`) is the whole admission decision, not a
-convenience: a realm usually holds more people than should reach a console that
-manages nodes, and any user of a realm can obtain a token from any client in it.
-Only members of that group are admitted, they are admitted as admins, and the
-check runs at every sign-in — so removing somebody from the group in the
-provider stops their next sign-in without touching this database. Everyone else
-is refused with a message naming the group. `OIDC_PROVIDER_NAME` (default
-`Keycloak`) is only the button's label.
-
-Password sign-in is untouched, including the closed sign-up: single sign-on adds
-a way in for a group, it does not take one away.
-
 The repo keeps a single `.env` at the root. Next only reads `.env` from the app
 directory, so `scripts/link-root-env.mjs` links it into `apps/web` before dev,
 build, and start. That runs automatically.
@@ -154,14 +133,14 @@ Open **Nodes → Register node**. You need:
 | Client ID / secret | OIDC client credentials |
 | Audience / Scope | Usually the validator URL and `daml_ledger_api` |
 
-Press **Test** on the node row to confirm both APIs answer before going further;
-it reports each surface separately with its latency.
+The Nodes page checks every registered node when it loads, so the Connection
+column tells you straight away whether both APIs answer.
 
 ## What each page does
 
 - **Dashboard** — cross-node stat tiles, a health matrix, and four charts: CC
   received per day, reward mix, rights distribution, and package version sprawl.
-- **Nodes** — register, edit, remove, and test nodes.
+- **Nodes** — register, edit, and remove nodes; each row shows whether it is reachable.
 - **Overview** — participant ID, Canton and Splice versions, connected
   synchronizers, ledger offset, user and package counts.
 - **Users** — create, deactivate, and delete ledger users; grant and revoke all
@@ -232,9 +211,8 @@ PGlite instance the tests use — so tests exercise the real migrations.
   plus any account an admin has granted them to. A grant is full co-ownership:
   a granted account can rotate the node's credentials and delete it for
   everyone, the owner included.
-- Only an admin can grant a node or change another account's role, and an admin
-  can change neither their own role nor the role of an account that signs in
-  through the identity provider — there, the Keycloak group decides.
+- Only an admin can grant a node or change another account's role, and no admin
+  can change their own — the deck cannot be left without one.
 
 Before putting this on a public network:
 

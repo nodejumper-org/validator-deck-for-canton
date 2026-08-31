@@ -14,13 +14,9 @@ const MIN_PASSWORD = 10
 export function AuthForm({
   mode,
   signupOpen,
-  sso = null,
 }: {
   mode: "sign-in" | "sign-up"
   signupOpen: boolean
-  // Only the provider's display name crosses from the server; see
-  // ssoButtonProps in src/server/oidc.ts.
-  sso?: { providerName: string } | null
 }) {
   const router = useRouter()
   const [name, setName] = useState("")
@@ -124,32 +120,6 @@ export function AuthForm({
           {pending ? "Working…" : isSignUp ? "Create account" : "Sign in"}
         </Button>
       </form>
-
-      {sso && !isSignUp ? (
-        <div className="mt-4">
-          <div className="text-muted-foreground mb-3 text-center text-[12px]">or</div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            disabled={pending}
-            onClick={async () => {
-              setError(null)
-              setPending(true)
-              const result = await signIn.oauth2({ providerId: "oidc", callbackURL: "/" })
-              setPending(false)
-              // A refusal here is the group gate doing its job: the provider
-              // admits only the operator group, so a realm user outside it
-              // arrives back with an error rather than a session.
-              if (result?.error) {
-                setError(result.error.message ?? "Single sign-on refused that account.")
-              }
-            }}
-          >
-            Sign in with {sso.providerName}
-          </Button>
-        </div>
-      ) : null}
 
       {isSignUp || signupOpen ? (
         <p className="text-muted-foreground mt-4 text-[13px]">

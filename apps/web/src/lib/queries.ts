@@ -18,7 +18,6 @@ import type {
   PackagesResult,
   PartiesPage,
   PartyDetails,
-  TestResult,
   UserRight,
   ValidatorSummary,
 } from "./types"
@@ -99,13 +98,6 @@ export function useDeleteNode() {
     (nodeId: string) => api<void>(`/api/nodes/${nodeId}`, { method: "DELETE" }),
     () => "Node removed",
   )
-}
-
-export function useTestNode() {
-  return useMutation({
-    mutationFn: (nodeId: string) => api<TestResult>(`/api/nodes/${nodeId}/test`, { method: "POST" }),
-    onError: (e: ApiError) => toast.error(e.message),
-  })
 }
 
 // ---------------------------------------------------------------- node detail

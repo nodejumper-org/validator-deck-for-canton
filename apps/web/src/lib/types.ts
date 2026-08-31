@@ -31,11 +31,7 @@ export type AccountRef = {
   email: string
 }
 
-/**
- * An app account as the Accounts page reads it. `providers` is what the page
- * cannot get from better-auth's own listUsers, and is what tells it which
- * accounts have their role decided in Keycloak rather than here.
- */
+/** An app account as the Accounts page reads it. */
 export type AdminAccount = {
   id: string
   name: string
@@ -43,7 +39,6 @@ export type AdminAccount = {
   role: string
   banned: boolean
   createdAt: string
-  providers: string[]
 }
 
 /** One node in the deck as the admin's access table sees it. */
@@ -54,13 +49,6 @@ export type NodeAccessRow = {
   owner: AccountRef
   /** Accounts granted the node, never including the owner. */
   grantees: AccountRef[]
-}
-
-export type Probe = { ok: boolean; detail: string; latencyMs: number }
-
-export type TestResult = {
-  ledger: Probe
-  validator: Probe | null
 }
 
 export type ConnectedSynchronizer = {
