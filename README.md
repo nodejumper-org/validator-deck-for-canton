@@ -228,7 +228,13 @@ PGlite instance the tests use — so tests exercise the real migrations.
   boundary.
 - Node OIDC client secrets are encrypted at rest with AES-256-GCM and **never
   sent to the browser** — responses carry `hasSecret: true` instead.
-- Nodes are scoped to their owner on every read and write.
+- Nodes are scoped on every read and write to the account that registered them
+  plus any account an admin has granted them to. A grant is full co-ownership:
+  a granted account can rotate the node's credentials and delete it for
+  everyone, the owner included.
+- Only an admin can grant a node or change another account's role, and an admin
+  can change neither their own role nor the role of an account that signs in
+  through the identity provider — there, the Keycloak group decides.
 
 Before putting this on a public network:
 
