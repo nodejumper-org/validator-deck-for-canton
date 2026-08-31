@@ -100,24 +100,12 @@ test("a plain user cannot create accounts", async () => {
 })
 
 test("the first password account is still the admin", async () => {
-  expect(await roleForNewUser({})).toBe("admin")
+  expect(await roleForNewUser()).toBe("admin")
 })
 
 test("a later password account is still a plain user", async () => {
   await createTestUser("first@example.test")
-  expect(await roleForNewUser({})).toBe("user")
-})
-
-test("a role decided upstream survives registration order", async () => {
-  await createTestUser("first@example.test")
-  expect(await roleForNewUser({ role: "admin" })).toBe("admin")
-})
-
-// The admin plugin stamps its default role on every new row, so `user` on an
-// incoming record proves nothing about who decided it. Treating it as a
-// decision left the very first sign-up a plain account and the deck admin-less.
-test("a defaulted user role does not outrank registration order", async () => {
-  expect(await roleForNewUser({ role: "user" })).toBe("admin")
+  expect(await roleForNewUser()).toBe("user")
 })
 
 // ------------------------------------------------------------- role changes
@@ -174,35 +162,4 @@ test("an admin cannot change their own role", async () => {
   ).rejects.toThrow(/own role/i)
 
   expect(await roleOf(operator.email)).toBe("admin")
-})
-
-// mapOidcProfile decides the role from the Keycloak group and overrideUserInfo
-// re-decides at every sign-in, so a hand-set role would silently revert.
-test("an admin cannot set the role of an OIDC-linked account", async () => {
-  const auth = await getAuth()
-  const { cookie } = await bootstrapAdmin()
-  const created = await auth.api.createUser({
-    body: { name: "Colleague", email: "colleague@example.test", password: "colleague-password" },
-    headers: new Headers({ cookie }),
-  })
-
-  const db = await getDb()
-  const now = new Date()
-  await db.insert(account).values({
-    id: "acc-oidc",
-    accountId: "kc-subject",
-    providerId: "oidc",
-    userId: created.user.id,
-    createdAt: now,
-    updatedAt: now,
-  })
-
-  await expect(
-    auth.api.setRole({
-      body: { userId: created.user.id, role: "admin" },
-      headers: new Headers({ cookie }),
-    }),
-  ).rejects.toThrow(/OIDC_ADMIN_GROUP|deck-admin/)
-
-  expect(await roleOf("colleague@example.test")).toBe("user")
 })

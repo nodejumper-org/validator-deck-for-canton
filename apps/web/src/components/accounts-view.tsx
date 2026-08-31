@@ -79,12 +79,6 @@ export function AccountsView() {
               {(accounts ?? []).map((account) => {
                 const self = account.id === session?.user.id
                 const isAdmin = account.role === "admin"
-                // The role of an account that signs in through the provider is
-                // decided by its Keycloak group and re-decided at every
-                // sign-in, so offering the action here would be offering one
-                // that silently reverts. The route refuses it too; this is the
-                // half the operator can see.
-                const roleIsUpstream = account.providers.includes("oidc")
                 return (
                   <TableRow key={account.id}>
                     <TableCell className="font-medium">
@@ -115,22 +109,16 @@ export function AccountsView() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {roleIsUpstream ? (
-                              <DropdownMenuItem disabled>
-                                Role set by identity provider
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  setRole.mutate({
-                                    userId: account.id,
-                                    role: isAdmin ? "user" : "admin",
-                                  })
-                                }
-                              >
-                                {isAdmin ? "Revoke admin" : "Make admin"}
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setRole.mutate({
+                                  userId: account.id,
+                                  role: isAdmin ? "user" : "admin",
+                                })
+                              }
+                            >
+                              {isAdmin ? "Revoke admin" : "Make admin"}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setPasswordFor(account)}>
                               Set password
                             </DropdownMenuItem>
