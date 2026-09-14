@@ -10,18 +10,5 @@ export const GET = authed(async (_req, ctx: RouteContext<"/api/nodes/[id]/packag
   const participantId = await ledger.getParticipantId()
   const packages = await ledger.listVettedPackages(participantId)
 
-  const byName = new Map<string, Set<string>>()
-  for (const p of packages) {
-    const versions = byName.get(p.packageName) ?? new Set<string>()
-    versions.add(p.packageVersion)
-    byName.set(p.packageName, versions)
-  }
-
-  // Ranked by how many distinct versions are vetted: the top of this list is the
-  // node's upgrade debt.
-  const versionsByName = [...byName.entries()]
-    .map(([name, versions]) => ({ name, versions: [...versions].sort() }))
-    .sort((a, b) => b.versions.length - a.versions.length || a.name.localeCompare(b.name))
-
-  return { packages, participantId, versionsByName }
+  return { packages, participantId }
 })

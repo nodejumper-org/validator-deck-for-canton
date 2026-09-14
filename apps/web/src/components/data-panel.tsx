@@ -15,6 +15,12 @@ type DataPanelProps = {
   className?: string
   /** Removes body padding, for panels whose child is a full-bleed table. */
   flush?: boolean
+  /**
+   * Lets the panel shrink to the height its parent gives it, so a child with
+   * `min-h-0 overflow-auto` scrolls inside instead of pushing the page longer.
+   * The parent must be a flex column with a bounded height.
+   */
+  fill?: boolean
   children: ReactNode
 }
 
@@ -31,10 +37,13 @@ export function DataPanel({
   loadingRows = 4,
   className,
   flush,
+  fill,
   children,
 }: DataPanelProps) {
   return (
-    <section className={cn("bg-card rounded-lg border", className)}>
+    <section
+      className={cn("bg-card rounded-lg border", fill && "flex min-h-0 flex-col", className)}
+    >
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold">{title}</h2>
@@ -45,7 +54,7 @@ export function DataPanel({
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </header>
 
-      <div className={cn(flush ? "" : "px-4 py-3")}>
+      <div className={cn(flush ? "" : "px-4 py-3", fill && "flex min-h-0 flex-col")}>
         {isLoading ? (
           <div className={cn("space-y-2", flush && "px-4 py-3")}>
             {Array.from({ length: loadingRows }, (_, i) => (
