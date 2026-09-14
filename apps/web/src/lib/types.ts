@@ -112,7 +112,6 @@ export type VettedPackage = {
 export type PackagesResult = {
   packages: VettedPackage[]
   participantId: string
-  versionsByName: { name: string; versions: string[] }[]
 }
 
 export type DarUploadResult = {
