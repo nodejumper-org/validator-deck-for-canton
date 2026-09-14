@@ -147,8 +147,9 @@ column tells you straight away whether both APIs answer.
   five right kinds.
 - **Parties** — *All* is server-paged with a prefix search; *Local* reads a
   stored list refreshed on a schedule (see below). Allocate new parties here.
-- **Packages** — vetted packages with names and versions, a version-sprawl
-  breakdown, and DAR upload with a validate-first dry run.
+- **Packages** — vetted packages with names and versions, the vetted versions
+  of every package name with the most-versioned first, and DAR upload (several
+  files at once) with a validate-first dry run.
 - **Validator** — wallet balance, mining round, DSO party, onboarded users, and
   recent wallet activity.
 

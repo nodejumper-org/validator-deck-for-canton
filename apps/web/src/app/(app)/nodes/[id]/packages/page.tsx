@@ -32,11 +32,10 @@ export default function PackagesPage({ params }: { params: Promise<{ id: string 
     )
   }, [data, search])
 
-  // Only names carrying more than one vetted version are interesting here.
-  const sprawl = useMemo(
-    () => (data?.versionsByName ?? []).filter((v) => v.versions.length > 1),
-    [data],
-  )
+  // Every name, in the route's order: most vetted versions first, so the names
+  // carrying upgrade debt still lead the list.
+  const versions = data?.versionsByName ?? []
+  const sprawled = versions.filter((v) => v.versions.length > 1).length
 
   const uploadButton = (
     <DarUploadDialog nodeId={id} trigger={<Button size="sm">Upload DARs</Button>} />
@@ -51,19 +50,21 @@ export default function PackagesPage({ params }: { params: Promise<{ id: string 
       />
 
       <div className="space-y-5 p-5">
-        {sprawl.length > 0 ? (
+        {versions.length > 0 ? (
           <DataPanel
-            title="Version sprawl"
-            description={`${sprawl.length} package ${
-              sprawl.length === 1 ? "name has" : "names have"
-            } more than one vetted version. Old versions stay vetted until they are explicitly unvetted.`}
+            title="Package versions"
+            description={
+              sprawled > 0
+                ? `${formatCount(versions.length)} package names, ${formatCount(sprawled)} with more than one vetted version. Old versions stay vetted until they are explicitly unvetted.`
+                : `${formatCount(versions.length)} package names, each with one vetted version.`
+            }
           >
-            <ul className="space-y-2.5">
-              {sprawl.slice(0, 12).map((entry) => (
+            <ul className="max-h-96 space-y-2.5 overflow-y-auto pr-1">
+              {versions.map((entry) => (
                 <li key={entry.name} className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
                   <span className="ident w-56 shrink-0 font-medium">{entry.name}</span>
                   <span className="text-muted-foreground tabular text-[12px]">
-                    {entry.versions.length} versions
+                    {entry.versions.length} {entry.versions.length === 1 ? "version" : "versions"}
                   </span>
                   <span className="flex flex-wrap gap-1">
                     {entry.versions.map((v) => (
