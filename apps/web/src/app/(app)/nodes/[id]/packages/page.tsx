@@ -39,7 +39,7 @@ export default function PackagesPage({ params }: { params: Promise<{ id: string 
   )
 
   const uploadButton = (
-    <DarUploadDialog nodeId={id} trigger={<Button size="sm">Upload DAR</Button>} />
+    <DarUploadDialog nodeId={id} trigger={<Button size="sm">Upload DARs</Button>} />
   )
 
   return (

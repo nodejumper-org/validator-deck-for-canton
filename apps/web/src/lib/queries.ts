@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api, ApiError } from "./api"
 import { authClient } from "./auth-client"
+import { type DarRow, type DarUpdate, runDarBatch } from "./dar-batch"
 import type {
   AdminAccount,
   DarUploadResult,
@@ -275,23 +276,40 @@ export function usePackages(nodeId: string) {
   })
 }
 
-export function useUploadDar(nodeId: string) {
+/**
+ * Validates or uploads a list of DARs, one request per file. The route takes a
+ * single DAR so each file keeps its own size limit and its own Canton error;
+ * `onUpdate` reports every row as it moves. The package list refetches once at
+ * the end rather than after each file.
+ */
+export function useUploadDars(nodeId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: { file: File; vetAllPackages: boolean; validateOnly: boolean }) => {
-      const form = new FormData()
-      form.set("file", input.file)
-      form.set("vetAllPackages", String(input.vetAllPackages))
-      form.set("validateOnly", String(input.validateOnly))
-      return api<DarUploadResult>(`/api/nodes/${nodeId}/dars`, { method: "POST", body: form })
-    },
+    mutationFn: (input: {
+      rows: DarRow[]
+      vetAllPackages: boolean
+      validateOnly: boolean
+      onUpdate: DarUpdate
+    }) =>
+      runDarBatch(
+        input.rows,
+        input.validateOnly,
+        (file) => {
+          const form = new FormData()
+          form.set("file", file)
+          form.set("vetAllPackages", String(input.vetAllPackages))
+          form.set("validateOnly", String(input.validateOnly))
+          return api<DarUploadResult>(`/api/nodes/${nodeId}/dars`, { method: "POST", body: form })
+        },
+        input.onUpdate,
+      ),
     onSuccess: (result) => {
-      if (!result.validated) {
+      if (result.uploaded > 0) {
         void qc.invalidateQueries({ queryKey: queryKeys.packages(nodeId) })
         void qc.invalidateQueries({ queryKey: queryKeys.dashboard() })
       }
     },
-    // The dialog renders the error inline, so no toast here.
+    // The dialog renders each file's outcome inline, so no toast here.
   })
 }
 
