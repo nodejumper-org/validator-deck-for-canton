@@ -3,9 +3,11 @@
 # Build context is the repo root, so the workspace layout is intact:
 #   docker build -f apps/web/Dockerfile .
 #
-# Debian slim rather than Alpine: on musl, npm resolves wasm fallbacks for the
-# native build tools that a macOS-generated lockfile does not carry.
-FROM node:24-slim AS builder
+# Debian 13 (trixie) slim, named explicitly: the bare `24-slim` tag still
+# tracks bookworm. Debian rather than Alpine: on musl, npm resolves wasm
+# fallbacks for the native build tools that a macOS-generated lockfile does
+# not carry.
+FROM node:24-trixie-slim AS builder
 WORKDIR /repo
 
 # Manifests first, so the install layer caches on lockfile changes alone.
@@ -32,7 +34,7 @@ RUN npm run build --workspace apps/web
 
 # ---
 
-FROM node:24-slim AS runtime
+FROM node:24-trixie-slim AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
