@@ -25,20 +25,23 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useGrantRights, useRevokeRights, useUserRights } from "@/lib/queries"
-import type { UserRight } from "@/lib/types"
+import type { ListedRight, UserRight } from "@/lib/types"
 
 const KINDS = [
   { value: "CanActAs", label: "Can act as", needsParty: true },
   { value: "CanReadAs", label: "Can read as", needsParty: true },
+  { value: "CanExecuteAs", label: "Can execute as", needsParty: true },
   { value: "ParticipantAdmin", label: "Participant admin", needsParty: false },
   { value: "IdentityProviderAdmin", label: "Identity provider admin", needsParty: false },
   { value: "CanReadAsAnyParty", label: "Can read as any party", needsParty: false },
+  { value: "CanExecuteAsAnyParty", label: "Can execute as any party", needsParty: false },
 ] as const
 
 type Kind = (typeof KINDS)[number]["value"]
 
 /** Stable identity for a right, so React keys and comparisons behave. */
-function rightKey(r: UserRight): string {
+function rightKey(r: ListedRight): string {
+  if (r.kind === "Unrecognized") return `Unrecognized:${r.name}`
   return "party" in r ? `${r.kind}:${r.party}` : r.kind
 }
 
@@ -100,19 +103,27 @@ export function RightsEditor({
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <Badge variant="secondary" className="shrink-0">
-                        {r.kind}
+                        {r.kind === "Unrecognized" ? r.name : r.kind}
                       </Badge>
                       {"party" in r ? <PartyId value={r.party} /> : null}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Revoke ${r.kind}`}
-                      disabled={revoke.isPending}
-                      onClick={() => revoke.mutate([r])}
-                    >
-                      <X className="size-3.5" />
-                    </Button>
+                    {r.kind === "Unrecognized" ? (
+                      // The deck does not know this kind's wire shape, so it
+                      // cannot revoke it safely; the node's own tools still can.
+                      <span className="text-muted-foreground shrink-0 text-[12px]">
+                        Unknown kind, read-only
+                      </span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Revoke ${r.kind}`}
+                        disabled={revoke.isPending}
+                        onClick={() => revoke.mutate([r])}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>

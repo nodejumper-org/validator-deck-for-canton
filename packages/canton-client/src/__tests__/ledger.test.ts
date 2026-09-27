@@ -76,6 +76,45 @@ test("parses the party-free admin right kinds", async () => {
   ])
 })
 
+test("parses the execute-as right kinds", async () => {
+  const { client } = harness({
+    rights: [
+      { kind: { CanExecuteAsAnyParty: { value: {} } } },
+      { kind: { CanExecuteAs: { value: { party: "alice::122" } } } },
+    ],
+  })
+  expect(await client.listUserRights("u1")).toEqual([
+    { kind: "CanExecuteAsAnyParty" },
+    { kind: "CanExecuteAs", party: "alice::122" },
+  ])
+})
+
+test("keeps an unknown right kind instead of failing the whole list", async () => {
+  const { client } = harness({
+    rights: [
+      { kind: { ParticipantAdmin: { value: {} } } },
+      { kind: { SomeFutureRight: { value: {} } } },
+    ],
+  })
+  expect(await client.listUserRights("u1")).toEqual([
+    { kind: "ParticipantAdmin" },
+    { kind: "Unrecognized", name: "SomeFutureRight" },
+  ])
+})
+
+test("serialises the execute-as rights to Canton wire form", async () => {
+  const { client, spy } = harness(f.rightsResponse)
+  await client.grantUserRights("u1", [
+    { kind: "CanExecuteAs", party: "alice::122" },
+    { kind: "CanExecuteAsAnyParty" },
+  ])
+  const [, init] = callAt(spy)
+  expect(JSON.parse(init.body as string).rights).toEqual([
+    { kind: { CanExecuteAs: { value: { party: "alice::122" } } } },
+    { kind: { CanExecuteAsAnyParty: { value: {} } } },
+  ])
+})
+
 test("encodes a user id containing a pipe into the path", async () => {
   const { client, spy } = harness(f.rightsResponse)
   await client.listUserRights("auth0|6927f768")

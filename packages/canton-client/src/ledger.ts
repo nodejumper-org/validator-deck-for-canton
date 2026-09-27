@@ -16,6 +16,7 @@ import {
   vettedPackagesSchema,
   type LedgerUser,
   type PartyDetails,
+  type ListedRight,
   type UserRight,
   type VettedPackage,
 } from "./schemas"
@@ -117,10 +118,10 @@ export function createLedgerClient(opts: HttpOptions) {
     deleteUser: (userId: string): Promise<void> =>
       http.json(emptySchema, userPath(userId), { method: "DELETE" }).then(() => undefined),
 
-    listUserRights: (userId: string): Promise<UserRight[]> =>
+    listUserRights: (userId: string): Promise<ListedRight[]> =>
       http.json(rightsEnvelopeSchema, `${userPath(userId)}/rights`).then((r) => r.rights),
 
-    grantUserRights: (userId: string, rights: UserRight[]): Promise<UserRight[]> =>
+    grantUserRights: (userId: string, rights: UserRight[]): Promise<ListedRight[]> =>
       http
         .json(
           rightsEnvelopeSchema,
@@ -129,7 +130,7 @@ export function createLedgerClient(opts: HttpOptions) {
         )
         .then((r) => r.rights),
 
-    revokeUserRights: (userId: string, rights: UserRight[]): Promise<UserRight[]> =>
+    revokeUserRights: (userId: string, rights: UserRight[]): Promise<ListedRight[]> =>
       http
         .json(rightsEnvelopeSchema, `${userPath(userId)}/rights`, {
           ...json({ userId, rights: rights.map(rightToWire) }),

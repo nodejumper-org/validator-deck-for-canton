@@ -74,8 +74,15 @@ export type UserRight =
   | { kind: "ParticipantAdmin" }
   | { kind: "IdentityProviderAdmin" }
   | { kind: "CanReadAsAnyParty" }
+  | { kind: "CanExecuteAsAnyParty" }
   | { kind: "CanActAs"; party: string }
   | { kind: "CanReadAs"; party: string }
+  | { kind: "CanExecuteAs"; party: string }
+
+/** A kind the node reported that this app does not know; shown, never sent back. */
+export type UnrecognizedRight = { kind: "Unrecognized"; name: string }
+
+export type ListedRight = UserRight | UnrecognizedRight
 
 export type LedgerUser = {
   id: string

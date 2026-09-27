@@ -50,19 +50,33 @@ export type UserRight =
   | { kind: "ParticipantAdmin" }
   | { kind: "IdentityProviderAdmin" }
   | { kind: "CanReadAsAnyParty" }
+  | { kind: "CanExecuteAsAnyParty" }
   | { kind: "CanActAs"; party: string }
   | { kind: "CanReadAs"; party: string }
+  | { kind: "CanExecuteAs"; party: string }
+
+/**
+ * A right kind this client does not know yet, as a node running a newer Canton
+ * reports it. Listing keeps it so one new kind cannot fail a whole user's rights;
+ * it is never granted or revoked, because we cannot vouch for its wire shape.
+ */
+export type UnrecognizedRight = { kind: "Unrecognized"; name: string }
+
+/** What reading a user's rights can return: every known kind, plus the rest. */
+export type ListedRight = UserRight | UnrecognizedRight
 
 export const USER_RIGHT_KINDS = [
   "ParticipantAdmin",
   "IdentityProviderAdmin",
   "CanReadAsAnyParty",
+  "CanExecuteAsAnyParty",
   "CanActAs",
   "CanReadAs",
+  "CanExecuteAs",
 ] as const
 
 /** The kinds that name a party; the rest are participant-wide. */
-export const PARTY_RIGHT_KINDS = ["CanActAs", "CanReadAs"] as const
+export const PARTY_RIGHT_KINDS = ["CanActAs", "CanReadAs", "CanExecuteAs"] as const
 
 const rawRightSchema = z.object({
   kind: z.record(
@@ -71,7 +85,7 @@ const rawRightSchema = z.object({
   ),
 })
 
-export const userRightSchema = rawRightSchema.transform((raw, ctx): UserRight => {
+export const userRightSchema = rawRightSchema.transform((raw, ctx): ListedRight => {
   const entry = Object.entries(raw.kind)[0]
   if (!entry) {
     ctx.addIssue({ code: "custom", message: "right had no kind" })
@@ -82,13 +96,14 @@ export const userRightSchema = rawRightSchema.transform((raw, ctx): UserRight =>
     case "ParticipantAdmin":
     case "IdentityProviderAdmin":
     case "CanReadAsAnyParty":
+    case "CanExecuteAsAnyParty":
       return { kind: name }
     case "CanActAs":
     case "CanReadAs":
+    case "CanExecuteAs":
       return { kind: name, party: body.value.party ?? "" }
     default:
-      ctx.addIssue({ code: "custom", message: `unknown right kind: ${name}` })
-      return z.NEVER
+      return { kind: "Unrecognized", name }
   }
 })
 
@@ -96,6 +111,7 @@ export function rightToWire(right: UserRight): unknown {
   switch (right.kind) {
     case "CanActAs":
     case "CanReadAs":
+    case "CanExecuteAs":
       return { kind: { [right.kind]: { value: { party: right.party } } } }
     default:
       return { kind: { [right.kind]: { value: {} } } }
@@ -103,7 +119,8 @@ export function rightToWire(right: UserRight): unknown {
 }
 
 /** Stable key for de-duplicating and comparing rights. */
-export function rightKey(right: UserRight): string {
+export function rightKey(right: ListedRight): string {
+  if (right.kind === "Unrecognized") return `Unrecognized:${right.name}`
   return "party" in right ? `${right.kind}:${right.party}` : right.kind
 }
 

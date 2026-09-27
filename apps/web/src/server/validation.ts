@@ -8,8 +8,10 @@ export const rightSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("ParticipantAdmin") }),
   z.object({ kind: z.literal("IdentityProviderAdmin") }),
   z.object({ kind: z.literal("CanReadAsAnyParty") }),
+  z.object({ kind: z.literal("CanExecuteAsAnyParty") }),
   z.object({ kind: z.literal("CanActAs"), party: z.string().min(1, "Party is required") }),
   z.object({ kind: z.literal("CanReadAs"), party: z.string().min(1, "Party is required") }),
+  z.object({ kind: z.literal("CanExecuteAs"), party: z.string().min(1, "Party is required") }),
 ])
 
 export const rightsBodySchema = z.object({
