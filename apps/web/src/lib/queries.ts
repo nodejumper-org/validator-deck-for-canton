@@ -19,6 +19,7 @@ import type {
   PackagesResult,
   PartiesPage,
   PartyDetails,
+  ListedRight,
   UserRight,
   ValidatorSummary,
 } from "./types"
@@ -178,7 +179,7 @@ export function useUserRights(nodeId: string, userId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.rights(nodeId, userId),
     queryFn: () =>
-      api<{ rights: UserRight[] }>(
+      api<{ rights: ListedRight[] }>(
         `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
       ).then((r) => r.rights),
     enabled: enabled && Boolean(nodeId && userId),
@@ -189,7 +190,7 @@ export function useGrantRights(nodeId: string, userId: string) {
   return useNodeScopedMutation(
     nodeId,
     (rights: UserRight[]) =>
-      api<{ rights: UserRight[] }>(
+      api<{ rights: ListedRight[] }>(
         `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
         { method: "POST", body: JSON.stringify({ rights }) },
       ),
@@ -201,7 +202,7 @@ export function useRevokeRights(nodeId: string, userId: string) {
   return useNodeScopedMutation(
     nodeId,
     (rights: UserRight[]) =>
-      api<{ rights: UserRight[] }>(
+      api<{ rights: ListedRight[] }>(
         `/api/nodes/${nodeId}/users/${encodeURIComponent(userId)}/rights`,
         { method: "PATCH", body: JSON.stringify({ rights }) },
       ),

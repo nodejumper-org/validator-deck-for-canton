@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest"
 import { createLedgerClient } from "../ledger"
+import { USER_RIGHT_KINDS } from "../schemas"
 import { createTokenProvider } from "../token"
 import { createValidatorClient } from "../validator"
 
@@ -57,13 +58,7 @@ describe.skipIf(!configured)("live ledger API", () => {
     const rights = await client.listUserRights(users[0]!.id)
     // Every right must land in the normalised union, not fall through as unknown.
     for (const r of rights) {
-      expect([
-        "ParticipantAdmin",
-        "IdentityProviderAdmin",
-        "CanReadAsAnyParty",
-        "CanActAs",
-        "CanReadAs",
-      ]).toContain(r.kind)
+      expect(USER_RIGHT_KINDS as readonly string[]).toContain(r.kind)
     }
   })
 
