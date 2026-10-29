@@ -135,7 +135,9 @@ need no Docker but still exercise the real migrations.
 **The root `.env` is linked into `apps/web`** by `scripts/link-root-env.mjs`,
 which runs before dev/build/start. Next only reads `.env` from the app directory
 and Turbopack runs handlers in a worker, so mutating `process.env` from
-`next.config.ts` does not reach them.
+`next.config.ts` does not reach them. `next build` copies that file into its
+standalone output as a plain file, which is why `.dockerignore` excludes `.env`
+files at every depth, not only at the root.
 
 **`shadcn` is not a dependency.** The one file the app used from it,
 `tailwind.css` (the `data-open:`-style variants the UI components rely on), is
@@ -211,6 +213,12 @@ is not ready.
 The Dockerfile installs and builds in one stage on purpose: npm nests some
 packages under `apps/web/node_modules`, so copying only the root `node_modules`
 loses them.
+
+The runtime stage is `node` and nothing else: npm, npx, corepack and yarn are
+deleted from it, and the app files are root-owned with only
+`apps/web/.next/cache` writable by the `node` user. A container command or
+healthcheck that calls a package manager, or anything that writes under `/app`,
+fails there.
 
 ## The validator hosts
 
