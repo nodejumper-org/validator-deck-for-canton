@@ -137,6 +137,14 @@ which runs before dev/build/start. Next only reads `.env` from the app directory
 and Turbopack runs handlers in a worker, so mutating `process.env` from
 `next.config.ts` does not reach them.
 
+**`shadcn` is not a dependency.** The one file the app used from it,
+`tailwind.css` (the `data-open:`-style variants the UI components rely on), is
+vendored as `src/app/shadcn.css`. The package is the components CLI, and as a
+dependency it put an MCP server, Express, dotenvx and an unfixable deepmerge
+advisory into `npm audit`. Run the CLI as `npx shadcn@latest`; if it adds
+`shadcn` back to `package.json` or restores `@import "shadcn/tailwind.css"`,
+undo both.
+
 ## Design system
 
 Tokens live in `apps/web/src/app/globals.css`.
