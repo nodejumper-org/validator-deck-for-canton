@@ -11,6 +11,8 @@ data
 *.tsbuildinfo
 .remember
 # Secrets — runtime config comes from compose env_file, never from the image.
-.env
-.env.*
-!.env.example
+# At any depth: Next copies apps/web/.env into its standalone output, so one
+# that reached the build context would ship inside the image.
+**/.env
+**/.env.*
+!**/.env.example

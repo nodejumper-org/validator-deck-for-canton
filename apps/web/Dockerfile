@@ -43,6 +43,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
+# The server is plain `node`, so the package managers the base image ships —
+# npm, npx, corepack and yarn — have no use here, and their own bundled
+# dependencies (undici, tar, brace-expansion, ip-address) were most of what an
+# image scan flagged in this stage.
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
+      /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+      /usr/local/bin/yarn /usr/local/bin/yarnpkg
+
 # Next standalone output preserves the workspace layout: the entrypoint is
 # apps/web/server.js with dependencies vendored alongside.
 COPY --from=builder /repo/apps/web/.next/standalone ./
@@ -50,7 +58,9 @@ COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
 # Migrations run on first connect, so the image must carry them.
 COPY --from=builder /repo/apps/web/drizzle ./apps/web/drizzle
-RUN chown -R node:node /app
+# The code stays owned by root, so the server process cannot rewrite it; only
+# the cache directory Next writes to at runtime belongs to `node`.
+RUN mkdir -p apps/web/.next/cache && chown node:node apps/web/.next/cache
 
 USER node
 EXPOSE 3000
